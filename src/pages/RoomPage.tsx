@@ -60,7 +60,8 @@ export function RoomPage() {
   if (!connected || !state) return <p>Connecting…</p>
 
   const you = state.participants.find((p) => p.id === state.you.id)
-  const hasVotes = state.participants.some((participant) => participant.hasVoted)
+  const players = state.participants.filter((participant) => !participant.isSpectator)
+  const allPlayersVoted = players.length > 0 && players.every((participant) => participant.hasVoted)
 
   function toggleSpectator(currentIsSpectator: boolean) {
     const nextIsSpectator = !currentIsSpectator
@@ -113,7 +114,7 @@ export function RoomPage() {
           <RevealControls
             isFacilitator={state.you.isFacilitator}
             revealed={state.revealed}
-            hasVotes={hasVotes}
+            hasVotes={allPlayersVoted}
             onReveal={reveal}
             onReset={reset}
           />

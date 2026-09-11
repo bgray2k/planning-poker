@@ -219,7 +219,10 @@ export class Room {
 			case 'reveal':
 				if (
 					participant.isFacilitator &&
-					Object.values(room.participants).some((currentParticipant) => currentParticipant.vote)
+					Object.values(room.participants).some((currentParticipant) => !currentParticipant.isSpectator) &&
+					Object.values(room.participants)
+						.filter((currentParticipant) => !currentParticipant.isSpectator)
+						.every((currentParticipant) => currentParticipant.vote !== null)
 				) {
 					room.revealed = true
 				}
