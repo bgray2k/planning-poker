@@ -61,6 +61,7 @@ interface PlayerSeatProps {
   readonly participant: ParticipantView
   readonly position: SeatPosition
   readonly revealed: boolean
+  readonly majorityVote: CardValue | null
   readonly reactions: EmojiReaction[]
   readonly quickPickerTargetId: string | null
   readonly emojiPickerTargetId: string | null
@@ -156,6 +157,7 @@ function PlayerSeat({
   participant,
   position,
   revealed,
+  majorityVote,
   reactions,
   quickPickerTargetId,
   emojiPickerTargetId,
@@ -167,6 +169,7 @@ function PlayerSeat({
   const isQuickPickerVisible = quickPickerTargetId === participant.id
   const isExpandedPickerVisible = emojiPickerTargetId === participant.id
   const isPickerOpen = isQuickPickerVisible || isExpandedPickerVisible
+  const keepsVotedStyle = participant.hasVoted && (!revealed || participant.vote === majorityVote)
   const openQuickPicker = () => onOpenQuickPicker(participant.id)
 
   return (
@@ -174,10 +177,15 @@ function PlayerSeat({
       className={`seat ${position.className}${isPickerOpen ? ' seat--emoji-picker-open' : ''}`}
       style={position.style}
     >
+      {participant.isFacilitator && (
+        <span className="seat__host-crown" role="img" aria-label={`${participant.name} is the host`}>
+          👑
+        </span>
+      )}
       <div className="seat__card-wrapper">
         <button
           type="button"
-          className={`seat__card${participant.hasVoted ? ' seat__card--voted' : ''}`}
+          className={`seat__card${keepsVotedStyle ? ' seat__card--voted' : ''}`}
           aria-label={`Show reactions for ${participant.name}`}
           aria-expanded={isPickerOpen}
           onClick={openQuickPicker}
@@ -203,10 +211,7 @@ function PlayerSeat({
           onExpand={() => onOpenExpandedPicker(participant.id)}
         />
       </div>
-      <span className="seat__name">
-        {participant.name}
-        {participant.isFacilitator ? ' 👑' : ''}
-      </span>
+      <span className="seat__name">{participant.name}</span>
     </div>
   )
 }
@@ -243,6 +248,7 @@ export function PokerTable({ participants, revealed, reactions, onThrowEmoji, co
     () => (revealed ? mostVotedValue(participants) : null),
     [participants, revealed],
   )
+  const majorityVote = result === 'split' ? null : result
   let resultLabel: ReactNode = null
   if (result === 'split') {
     resultLabel = <span className="poker-table__result-label">Room is split</span>
@@ -314,6 +320,7 @@ export function PokerTable({ participants, revealed, reactions, onThrowEmoji, co
           participant={participant}
           position={seatPositions[index]}
           revealed={revealed}
+          majorityVote={majorityVote}
           reactions={reactions}
           quickPickerTargetId={quickPickerTargetId}
           emojiPickerTargetId={emojiPickerTargetId}

@@ -301,6 +301,10 @@
   position: relative;
 }
 
+.seat__host-crown {
+  line-height: 1;
+}
+
 .seat__card {
   position: relative;
   width: 2.25rem;
@@ -456,7 +460,9 @@
 
 .seat__card--voted {
   border-color: #5850f7;
-  background: #eef2ff;
+  background: #5850f7;
+  color: #fff;
+  font-weight: 700;
 }
 
 .seat__spinner {
