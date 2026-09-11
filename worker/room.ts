@@ -26,10 +26,20 @@ interface StoredRoom {
 
 interface ConnectionAttachment {
 	participantId: string | null
+	messageWindowStart: number
+	messageCount: number
+	lastReactionAt: number
 }
 
 const ROOM_STORAGE_KEY = 'room'
 const CARD_VALUES = new Set<string>(Object.values(VOTE_DECKS).flat())
+const ROOM_ID_PATTERN = /^[A-Z0-9]{6}$/
+const MAX_MESSAGE_BYTES = 4096
+const MESSAGE_WINDOW_MS = 10_000
+const MAX_MESSAGES_PER_WINDOW = 40
+const REACTION_COOLDOWN_MS = 300
+const MAX_NAME_LENGTH = 40
+const MAX_CONNECTIONS_PER_ROOM = 30
 
 function createRoom(roomId: string): StoredRoom {
 	return {
@@ -58,7 +68,10 @@ function parseClientMessage(value: unknown): ClientMessage | null {
 
 	switch (value.type) {
 		case 'join':
-			return typeof value.name === 'string' && typeof value.isSpectator === 'boolean'
+			return typeof value.name === 'string' &&
+				value.name.trim().length > 0 &&
+				value.name.length <= MAX_NAME_LENGTH &&
+				typeof value.isSpectator === 'boolean'
 				? { type: 'join', name: value.name, isSpectator: value.isSpectator }
 				: null
 		case 'vote':
@@ -172,13 +185,15 @@ export class Room {
 		const participantId = crypto.randomUUID().replaceAll('-', '').slice(0, 8)
 		room.participants[participantId] = {
 			id: participantId,
-			name: message.name,
+			name: message.name.trim(),
 			vote: null,
 			isFacilitator: Object.keys(room.participants).length === 0,
 			isSpectator: message.isSpectator,
 		}
 		room.order.push(participantId)
-		ws.serializeAttachment({ participantId } satisfies ConnectionAttachment)
+		const attachment = this.connectionAttachment(ws)
+		attachment.participantId = participantId
+		ws.serializeAttachment(attachment)
 		await this.saveRoom(room)
 		await this.broadcastState(room)
 	}
@@ -239,8 +254,12 @@ export class Room {
 				if (
 					room.participants[message.targetId] &&
 					message.emoji.length > 0 &&
-					message.emoji.length <= 32
+					message.emoji.length <= 32 &&
+					Date.now() - this.connectionAttachment(ws).lastReactionAt >= REACTION_COOLDOWN_MS
 				) {
+					const attachment = this.connectionAttachment(ws)
+					attachment.lastReactionAt = Date.now()
+					ws.serializeAttachment(attachment)
 					const reaction: ServerMessage = {
 						type: 'emojiThrown',
 						id: crypto.randomUUID(),
@@ -263,17 +282,53 @@ export class Room {
 			return new Response('Expected a WebSocket upgrade', { status: 426 })
 		}
 		this.roomId = new URL(request.url).searchParams.get('room')?.trim() ?? null
+		if (!this.roomId || !ROOM_ID_PATTERN.test(this.roomId)) {
+			return new Response('Invalid room id', { status: 400 })
+		}
+		if (this.state.getWebSockets().length >= MAX_CONNECTIONS_PER_ROOM) {
+			return new Response('Too many connections', { status: 429 })
+		}
 
 		const pair = new WebSocketPair()
 		const client = pair[0]
 		const server = pair[1]
 		this.state.acceptWebSocket(server)
-		server.serializeAttachment({ participantId: null } satisfies ConnectionAttachment)
+		server.serializeAttachment({
+			participantId: null,
+			messageWindowStart: Date.now(),
+			messageCount: 0,
+			lastReactionAt: 0,
+		} satisfies ConnectionAttachment)
 
 		return new Response(null, { status: 101, webSocket: client })
 	}
 
 	async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer) {
+		const rawBytes = typeof message === 'string'
+			? message.length > MAX_MESSAGE_BYTES
+				? MAX_MESSAGE_BYTES + 1
+				: new TextEncoder().encode(message).byteLength
+			: message.byteLength
+		if (rawBytes > MAX_MESSAGE_BYTES) {
+			this.sendError(ws, 'Message is too large')
+			ws.close(1009, 'Message is too large')
+			return
+		}
+
+		const attachment = this.connectionAttachment(ws)
+		const now = Date.now()
+		if (now - attachment.messageWindowStart >= MESSAGE_WINDOW_MS) {
+			attachment.messageWindowStart = now
+			attachment.messageCount = 0
+		}
+		attachment.messageCount += 1
+		ws.serializeAttachment(attachment)
+		if (attachment.messageCount > MAX_MESSAGES_PER_WINDOW) {
+			this.sendError(ws, 'Too many messages')
+			ws.close(1008, 'Rate limit exceeded')
+			return
+		}
+
 		const raw = typeof message === 'string' ? message : new TextDecoder().decode(message)
 		let parsed: unknown
 		try {
@@ -318,5 +373,9 @@ export class Room {
 
 	webSocketError(ws: WebSocket) {
 		ws.close()
+	}
+
+	private connectionAttachment(ws: WebSocket): ConnectionAttachment {
+		return ws.deserializeAttachment() as ConnectionAttachment
 	}
 }

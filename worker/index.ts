@@ -5,6 +5,8 @@ export interface Env {
 	ALLOWED_ORIGIN: string
 }
 
+const ROOM_ID_PATTERN = /^[A-Z0-9]{6}$/
+
 export default {
 	async fetch(request: Request, env: Env): Promise<Response> {
 		if (request.method !== 'GET') {
@@ -21,7 +23,7 @@ export default {
 		}
 
 		const roomId = new URL(request.url).searchParams.get('room')?.trim()
-		if (!roomId) {
+		if (!roomId || !ROOM_ID_PATTERN.test(roomId)) {
 			return new Response('Missing room id', { status: 400 })
 		}
 
