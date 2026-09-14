@@ -34,6 +34,7 @@ export function HomePage() {
         <h2>Create a room</h2>
         <input
           placeholder="Your name"
+          maxLength={12}
           value={createName}
           onChange={(e) => setCreateName(e.target.value)}
         />
@@ -51,6 +52,7 @@ export function HomePage() {
         <h2>Join a room</h2>
         <input
           placeholder="Your name"
+          maxLength={12}
           value={joinName}
           onChange={(e) => setJoinName(e.target.value)}
         />

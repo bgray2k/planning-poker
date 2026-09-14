@@ -10,7 +10,7 @@ export const VOTE_DECKS = {
 } as const
 
 export const MAX_PARTICIPANTS = 20
-export const REACTION_EMOJIS = ['🪨', '✏️', '🗑️', '🛩️', '🚌'] as const
+export const REACTION_EMOJIS = ['🪨', '✏️', '🚩', '🛩️', '🚌'] as const
 export const REACTION_COUNTS = [1, 3, 5] as const
 
 export type VoteDeckType = keyof typeof VOTE_DECKS

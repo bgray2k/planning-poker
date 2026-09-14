@@ -64,16 +64,19 @@ interface SeatPosition {
 
 interface SeatEmojiPickerProps {
   readonly participant: ParticipantView
+  readonly reactionCount: ReactionCount
   readonly isExpanded: boolean
   readonly isVisible: boolean
   readonly canMakeFacilitator: boolean
   readonly onMakeFacilitator: (participantId: string) => void
   readonly onThrowEmoji: (targetId: string, emoji: string, count: ReactionCount) => void
+  readonly onSelectReactionCount: (count: ReactionCount) => void
   readonly onExpand: () => void
 }
 
 interface PlayerSeatProps {
   readonly participant: ParticipantView
+  readonly reactionCount: ReactionCount
   readonly position: SeatPosition
   readonly revealed: boolean
   readonly majorityVote: CardValue | null
@@ -85,6 +88,7 @@ interface PlayerSeatProps {
   readonly onOpenQuickPicker: (targetId: string) => void
   readonly onOpenExpandedPicker: (targetId: string) => void
   readonly onThrowEmoji: (targetId: string, emoji: string, count: ReactionCount) => void
+  readonly onSelectReactionCount: (count: ReactionCount) => void
 }
 
 function renderSeatCardContent(participant: ParticipantView, revealed: boolean): ReactNode {
@@ -145,15 +149,15 @@ function ReactionCountControls({
 
 function SeatEmojiPicker({
   participant,
+  reactionCount,
   isExpanded,
   isVisible,
   canMakeFacilitator,
   onMakeFacilitator,
   onThrowEmoji,
+  onSelectReactionCount,
   onExpand,
 }: SeatEmojiPickerProps) {
-  const [reactionCount, setReactionCount] = useState<ReactionCount>(1)
-
   return (
     <div className={`seat__picker-stack${isVisible || isExpanded ? ' seat__picker-stack--visible' : ''}`}>
       {isVisible && canMakeFacilitator && !participant.isFacilitator && (
@@ -180,7 +184,7 @@ function SeatEmojiPicker({
               height={320}
               previewConfig={{ showPreview: false }}
             />
-            <ReactionCountControls selectedCount={reactionCount} onSelect={setReactionCount} />
+            <ReactionCountControls selectedCount={reactionCount} onSelect={onSelectReactionCount} />
           </Suspense>
         ) : (
           <>
@@ -204,7 +208,7 @@ function SeatEmojiPicker({
             >
               <SmilePlus aria-hidden="true" size={17} />
             </button>
-            <ReactionCountControls selectedCount={reactionCount} onSelect={setReactionCount} />
+            <ReactionCountControls selectedCount={reactionCount} onSelect={onSelectReactionCount} />
           </>
         )}
       </div>
@@ -214,6 +218,7 @@ function SeatEmojiPicker({
 
 function PlayerSeat({
   participant,
+  reactionCount,
   position,
   revealed,
   majorityVote,
@@ -225,6 +230,7 @@ function PlayerSeat({
   onOpenQuickPicker,
   onOpenExpandedPicker,
   onThrowEmoji,
+  onSelectReactionCount,
 }: PlayerSeatProps) {
   const playerReactions = reactions.filter((reaction) => reaction.targetId === participant.id)
   const isQuickPickerVisible = quickPickerTargetId === participant.id
@@ -266,11 +272,13 @@ function PlayerSeat({
         </button>
         <SeatEmojiPicker
           participant={participant}
+          reactionCount={reactionCount}
           isExpanded={isExpandedPickerVisible}
           isVisible={isQuickPickerVisible}
           canMakeFacilitator={canMakeFacilitator}
           onMakeFacilitator={onMakeFacilitator}
           onThrowEmoji={onThrowEmoji}
+          onSelectReactionCount={onSelectReactionCount}
           onExpand={() => onOpenExpandedPicker(participant.id)}
         />
       </div>
@@ -288,6 +296,7 @@ export function PokerTable({
   onThrowEmoji,
   controls,
 }: PokerTableProps) {
+  const [reactionCount, setReactionCount] = useState<ReactionCount>(1)
   const [quickPickerTargetId, setQuickPickerTargetId] = useState<string | null>(null)
   const [emojiPickerTargetId, setEmojiPickerTargetId] = useState<string | null>(null)
 
@@ -389,6 +398,7 @@ export function PokerTable({
         <PlayerSeat
           key={participant.id}
           participant={participant}
+          reactionCount={reactionCount}
           position={seatPositions[index]}
           revealed={revealed}
           majorityVote={majorityVote}
@@ -400,6 +410,7 @@ export function PokerTable({
           onOpenQuickPicker={setQuickPickerTargetId}
           onOpenExpandedPicker={setEmojiPickerTargetId}
           onThrowEmoji={onThrowEmoji}
+          onSelectReactionCount={setReactionCount}
         />
       ))}
     </div>

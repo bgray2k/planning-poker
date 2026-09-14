@@ -54,6 +54,7 @@ export function RoomPage() {
         <h1>Join room {roomId}</h1>
         <input
           placeholder="Your name"
+          maxLength={12}
           value={nameInput}
           onChange={(e) => setNameInput(e.target.value)}
         />
