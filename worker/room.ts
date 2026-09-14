@@ -387,7 +387,7 @@ export class Room {
 
 		if (Object.keys(room.participants).length === 0) {
 			this.roomPromise = null
-			await this.state.storage.delete(ROOM_STORAGE_KEY)
+			await this.state.storage.deleteAll()
 			return
 		}
 
