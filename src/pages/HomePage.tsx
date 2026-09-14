@@ -1,8 +1,28 @@
-import { customAlphabet } from 'nanoid'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-const generateRoomId = customAlphabet('ABCDEFGHJKMNPQRSTUVWXYZ23456789', 6)
+const predefinedRoomIds = [
+  'X5C7DC',
+  'G4A3R7',
+  'CCXBF6',
+  '2QQ6YB',
+  'DFJJTU',
+  'Z4EN8Q',
+  'B3MANX',
+  'NXWD9K',
+  '8H8VBB',
+  'WX8TUT',
+  'VXPJG7',
+  'WNWJPQ',
+  'W88D5V',
+  '4P44J5',
+  '3Z2S7D',
+  '4QN6C3',
+  'HJ2SEF',
+  '4QDFBD',
+  'B3M4U5',
+  '5BEBW2',
+]
 
 export function HomePage() {
   const navigate = useNavigate()
@@ -12,7 +32,7 @@ export function HomePage() {
 
   function createRoom(isSpectator: boolean) {
     if (!createName.trim()) return
-    const roomId = generateRoomId()
+    const roomId = predefinedRoomIds[Math.floor(Math.random() * predefinedRoomIds.length)]
     sessionStorage.setItem(`pp:name:${roomId}`, createName.trim())
     sessionStorage.setItem(`pp:spectator:${roomId}`, String(isSpectator))
     navigate(`/room/${roomId}`)
