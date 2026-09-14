@@ -11,9 +11,11 @@ export const VOTE_DECKS = {
 
 export const MAX_PARTICIPANTS = 20
 export const REACTION_EMOJIS = ['🪨', '✏️', '🗑️', '🛩️', '🚌'] as const
+export const REACTION_COUNTS = [1, 3, 5] as const
 
 export type VoteDeckType = keyof typeof VOTE_DECKS
 export type CardValue = (typeof VOTE_DECKS)[VoteDeckType][number]
+export type ReactionCount = (typeof REACTION_COUNTS)[number]
 
 export interface ParticipantView {
   id: string
@@ -40,7 +42,7 @@ export type ClientMessage =
   | { type: 'setSpectator'; isSpectator: boolean }
   | { type: 'reveal' }
   | { type: 'reset' }
-  | { type: 'throwEmoji'; targetId: string; emoji: string }
+  | { type: 'throwEmoji'; targetId: string; emoji: string; count?: ReactionCount }
 
 export type ServerMessage =
   | { type: 'state'; state: RoomStateView }
@@ -52,4 +54,5 @@ export type ServerMessage =
       emoji: string
       from: 'left' | 'right'
       startY: number
+      impactY?: number
     }

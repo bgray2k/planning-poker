@@ -10,7 +10,13 @@ import {
 } from 'react'
 import type { Theme } from 'emoji-picker-react'
 import { Eye, SmilePlus } from 'lucide-react'
-import { REACTION_EMOJIS, type CardValue, type ParticipantView } from '../../shared/protocol.ts'
+import {
+  REACTION_COUNTS,
+  REACTION_EMOJIS,
+  type CardValue,
+  type ParticipantView,
+  type ReactionCount,
+} from '../../shared/protocol.ts'
 import type { EmojiReaction } from '../hooks/useRoomConnection.ts'
 
 const EmojiPicker = lazy(() => import('emoji-picker-react'))
@@ -19,7 +25,7 @@ interface PokerTableProps {
   readonly participants: ParticipantView[]
   readonly revealed: boolean
   readonly reactions: EmojiReaction[]
-  readonly onThrowEmoji: (targetId: string, emoji: string) => void
+  readonly onThrowEmoji: (targetId: string, emoji: string, count: ReactionCount) => void
   readonly controls: ReactNode
 }
 
@@ -41,7 +47,12 @@ function reactionStyle(reaction: EmojiReaction): CSSProperties {
     '--reaction-impact-rotation': `${(seed % 51) - 25}deg`,
     '--reaction-spin-end': `${(seed % 360) + 180}deg`,
     '--reaction-start-y': `${reaction.startY}vh`,
+    '--reaction-impact-y': `${reaction.impactY ?? 50}%`,
   } as CSSProperties
+}
+
+function displayPlayerName(name: string): string {
+  return name === 'Will' || name === 'will' ? `${name} 🚌` : name
 }
 
 interface SeatPosition {
@@ -53,7 +64,7 @@ interface SeatEmojiPickerProps {
   readonly participant: ParticipantView
   readonly isExpanded: boolean
   readonly isVisible: boolean
-  readonly onThrowEmoji: (targetId: string, emoji: string) => void
+  readonly onThrowEmoji: (targetId: string, emoji: string, count: ReactionCount) => void
   readonly onExpand: () => void
 }
 
@@ -67,7 +78,7 @@ interface PlayerSeatProps {
   readonly emojiPickerTargetId: string | null
   readonly onOpenQuickPicker: (targetId: string) => void
   readonly onOpenExpandedPicker: (targetId: string) => void
-  readonly onThrowEmoji: (targetId: string, emoji: string) => void
+  readonly onThrowEmoji: (targetId: string, emoji: string, count: ReactionCount) => void
 }
 
 function renderSeatCardContent(participant: ParticipantView, revealed: boolean): ReactNode {
@@ -101,6 +112,31 @@ function handleSeatCardKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>, act
   activate()
 }
 
+function ReactionCountControls({
+  selectedCount,
+  onSelect,
+}: {
+  readonly selectedCount: ReactionCount
+  readonly onSelect: (count: ReactionCount) => void
+}) {
+  return (
+    <div className="seat__reaction-counts" role="group" aria-label="Emoji count">
+      {REACTION_COUNTS.map((count) => (
+        <button
+          key={count}
+          type="button"
+          className="seat__reaction-count"
+          aria-label={`Send ${count} emojis`}
+          aria-pressed={selectedCount === count}
+          onClick={() => onSelect(count)}
+        >
+          x{count}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 function SeatEmojiPicker({
   participant,
   isExpanded,
@@ -108,6 +144,8 @@ function SeatEmojiPicker({
   onThrowEmoji,
   onExpand,
 }: SeatEmojiPickerProps) {
+  const [reactionCount, setReactionCount] = useState<ReactionCount>(1)
+
   return (
     <div
       className={`seat__emoji-picker${isVisible ? ' seat__emoji-picker--visible' : ''}${isExpanded ? ' seat__emoji-picker--expanded' : ''}`}
@@ -117,13 +155,14 @@ function SeatEmojiPicker({
         <Suspense fallback={null}>
           <EmojiPicker
             onEmojiClick={(emojiData) => {
-              onThrowEmoji(participant.id, emojiData.emoji)
+              onThrowEmoji(participant.id, emojiData.emoji, reactionCount)
             }}
             theme={'dark' as Theme}
             width={260}
             height={320}
             previewConfig={{ showPreview: false }}
           />
+          <ReactionCountControls selectedCount={reactionCount} onSelect={setReactionCount} />
         </Suspense>
       ) : (
         <>
@@ -133,7 +172,7 @@ function SeatEmojiPicker({
               type="button"
               className="seat__emoji-button"
               aria-label={`Send ${emoji} to ${participant.name}`}
-              onClick={() => onThrowEmoji(participant.id, emoji)}
+              onClick={() => onThrowEmoji(participant.id, emoji, reactionCount)}
             >
               {emoji}
             </button>
@@ -147,6 +186,7 @@ function SeatEmojiPicker({
           >
             <SmilePlus aria-hidden="true" size={17} />
           </button>
+          <ReactionCountControls selectedCount={reactionCount} onSelect={setReactionCount} />
         </>
       )}
     </div>
@@ -211,7 +251,7 @@ function PlayerSeat({
           onExpand={() => onOpenExpandedPicker(participant.id)}
         />
       </div>
-      <span className="seat__name">{participant.name}</span>
+      <span className="seat__name">{displayPlayerName(participant.name)}</span>
     </div>
   )
 }
@@ -285,8 +325,8 @@ export function PokerTable({ participants, revealed, reactions, onThrowEmoji, co
     if (assignment.count > 1) {
       const isTwoSeatShortEdge =
         assignment.count === 2 && (assignment.edge === 'right' || assignment.edge === 'left')
-      const edgeStart = isTwoSeatShortEdge ? 0.3 : 0.1
-      const edgeRange = isTwoSeatShortEdge ? 0.4 : 0.8
+      const edgeStart = isTwoSeatShortEdge ? 0.25 : 0.1
+      const edgeRange = isTwoSeatShortEdge ? 0.5 : 0.8
       position = edgeStart + (assignment.seatIndex / (assignment.count - 1)) * edgeRange
     }
 

@@ -6,6 +6,7 @@ import { nanoid } from 'nanoid'
 import { WebSocketServer, type WebSocket } from 'ws'
 import {
   MAX_PARTICIPANTS,
+  REACTION_COUNTS,
   VOTE_DECKS,
   type CardValue,
   type ClientMessage,
@@ -168,6 +169,7 @@ function handleThrowEmoji(
   participantId: string,
   targetId: string,
   emoji: string,
+  count: number | undefined,
 ) {
   const participant = room.participants.get(participantId)
   if (
@@ -175,7 +177,8 @@ function handleThrowEmoji(
     !room.participants.has(targetId) ||
     typeof emoji !== 'string' ||
     emoji.length === 0 ||
-    emoji.length > 32
+    emoji.length > 32 ||
+    !REACTION_COUNTS.includes((count ?? 1) as (typeof REACTION_COUNTS)[number])
   ) {
     return
   }
@@ -184,16 +187,19 @@ function handleThrowEmoji(
   if (now - participant.lastReactionAt < 300) return
   participant.lastReactionAt = now
 
-  const id = nanoid(8)
-  const message: ServerMessage = {
-    type: 'emojiThrown',
-    id,
-    targetId,
-    emoji,
-    from: (id.codePointAt(0) ?? 0) % 2 === 0 ? 'left' : 'right',
-    startY: randomInt(0, 101),
+  for (let reactionIndex = 0; reactionIndex < (count ?? 1); reactionIndex += 1) {
+    const id = nanoid(8)
+    const message: ServerMessage = {
+      type: 'emojiThrown',
+      id,
+      targetId,
+      emoji,
+      from: (id.codePointAt(0) ?? 0) % 2 === 0 ? 'left' : 'right',
+      startY: randomInt(0, 101),
+      impactY: randomInt(15, 86),
+    }
+    for (const currentParticipant of room.participants.values()) send(currentParticipant.ws, message)
   }
-  for (const currentParticipant of room.participants.values()) send(currentParticipant.ws, message)
 }
 
 function handleClose(ws: WebSocket) {
@@ -266,7 +272,7 @@ wss.on('connection', (ws, req) => {
         handleReset(room, meta.participantId)
         break
       case 'throwEmoji':
-        handleThrowEmoji(room, meta.participantId, message.targetId, message.emoji)
+        handleThrowEmoji(room, meta.participantId, message.targetId, message.emoji, message.count)
         break
     }
   })

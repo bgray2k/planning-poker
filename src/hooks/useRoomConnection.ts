@@ -3,6 +3,7 @@ import type {
   CardValue,
   ClientMessage,
   RoomStateView,
+  ReactionCount,
   ServerMessage,
   VoteDeckType,
 } from '../../shared/protocol.ts'
@@ -15,6 +16,7 @@ export interface EmojiReaction {
   emoji: string
   from: 'left' | 'right'
   startY: number
+  impactY?: number
 }
 
 function removeReaction(
@@ -84,11 +86,11 @@ export function useRoomConnection(roomId: string, name: string | null, isSpectat
   const reveal = useCallback(() => sendMessage({ type: 'reveal' }), [sendMessage])
   const reset = useCallback(() => sendMessage({ type: 'reset' }), [sendMessage])
   const throwEmoji = useCallback(
-    (targetId: string, emoji: string) => {
+    (targetId: string, emoji: string, count: ReactionCount = 1) => {
       const now = Date.now()
       if (now - lastReactionAtRef.current < 300) return
       lastReactionAtRef.current = now
-      sendMessage({ type: 'throwEmoji', targetId, emoji })
+      sendMessage({ type: 'throwEmoji', targetId, emoji, count })
     },
     [sendMessage],
   )

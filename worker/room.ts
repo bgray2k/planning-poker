@@ -1,5 +1,6 @@
 import {
 	MAX_PARTICIPANTS,
+	REACTION_COUNTS,
 	VOTE_DECKS,
 	type CardValue,
 	type ClientMessage,
@@ -86,8 +87,10 @@ function parseClientMessage(value: unknown): ClientMessage | null {
 		case 'reset':
 			return { type: value.type }
 		case 'throwEmoji':
-			return typeof value.targetId === 'string' && typeof value.emoji === 'string'
-				? { type: 'throwEmoji', targetId: value.targetId, emoji: value.emoji }
+			return typeof value.targetId === 'string' &&
+				typeof value.emoji === 'string' &&
+				(value.count === undefined || REACTION_COUNTS.includes(value.count as (typeof REACTION_COUNTS)[number]))
+				? { type: 'throwEmoji', targetId: value.targetId, emoji: value.emoji, count: value.count as (typeof REACTION_COUNTS)[number] | undefined }
 				: null
 		default:
 			return null
@@ -251,24 +254,29 @@ export class Room {
 				}
 				break
 			case 'throwEmoji':
+				const reactionCount = message.count ?? 1
 				if (
 					room.participants[message.targetId] &&
 					message.emoji.length > 0 &&
 					message.emoji.length <= 32 &&
+					REACTION_COUNTS.includes(reactionCount) &&
 					Date.now() - this.connectionAttachment(ws).lastReactionAt >= REACTION_COOLDOWN_MS
 				) {
 					const attachment = this.connectionAttachment(ws)
 					attachment.lastReactionAt = Date.now()
 					ws.serializeAttachment(attachment)
-					const reaction: ServerMessage = {
-						type: 'emojiThrown',
-						id: crypto.randomUUID(),
-						targetId: message.targetId,
-						emoji: message.emoji,
-						from: crypto.getRandomValues(new Uint8Array(1))[0] % 2 === 0 ? 'left' : 'right',
-						startY: crypto.getRandomValues(new Uint8Array(1))[0] % 101,
+					for (let reactionIndex = 0; reactionIndex < reactionCount; reactionIndex += 1) {
+						const reaction: ServerMessage = {
+							type: 'emojiThrown',
+							id: crypto.randomUUID(),
+							targetId: message.targetId,
+							emoji: message.emoji,
+							from: crypto.getRandomValues(new Uint8Array(1))[0] % 2 === 0 ? 'left' : 'right',
+							startY: crypto.getRandomValues(new Uint8Array(1))[0] % 101,
+							impactY: crypto.getRandomValues(new Uint8Array(1))[0] % 71 + 15,
+						}
+						for (const currentWs of this.state.getWebSockets()) this.send(currentWs, reaction)
 					}
-					for (const currentWs of this.state.getWebSockets()) this.send(currentWs, reaction)
 				}
 				return
 		}
