@@ -104,11 +104,15 @@ function parseClientMessage(value: unknown): ClientMessage | null {
 export class Room {
 	private roomPromise: Promise<StoredRoom> | null = null
 	private roomId: string | null = null
+	private readonly clearingSockets = new Set<WebSocket>()
 
 	constructor(private readonly state: DurableObjectState, _env: unknown) {}
 
 	private async clearRoom() {
-		for (const ws of this.state.getWebSockets()) ws.close(1001, 'Room cleared by administrator')
+		for (const ws of this.state.getWebSockets()) {
+			this.clearingSockets.add(ws)
+			ws.close(1001, 'Room cleared by administrator')
+		}
 		this.roomPromise = null
 		await this.state.storage.delete(ROOM_STORAGE_KEY)
 	}
@@ -325,7 +329,6 @@ export class Room {
 		if (this.state.getWebSockets().length >= MAX_CONNECTIONS_PER_ROOM) {
 			return new Response('Too many connections', { status: 429 })
 		}
-
 		const pair = new WebSocketPair()
 		const client = pair[0]
 		const server = pair[1]
@@ -389,6 +392,7 @@ export class Room {
 	}
 
 	async webSocketClose(ws: WebSocket) {
+		if (this.clearingSockets.delete(ws)) return
 		const participantId = this.participantIdFor(ws)
 		if (!participantId) return
 
