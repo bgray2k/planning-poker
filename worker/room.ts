@@ -407,6 +407,7 @@ export class Room {
 
 		if (Object.keys(room.participants).length === 0) {
 			this.roomPromise = null
+			await this.state.storage.deleteAlarm()
 			await this.state.storage.deleteAll()
 			return
 		}
@@ -428,7 +429,13 @@ export class Room {
 				ws.close(1000, AFK_TIMEOUT_MESSAGE)
 			}
 		}
-		this.scheduleAfkCheck()
+		if (this.state.getWebSockets().length > 0 || Object.keys(room.participants).length > 0) {
+			this.scheduleAfkCheck()
+		} else {
+			await this.state.storage.deleteAlarm()
+			this.roomPromise = null
+			await this.state.storage.deleteAll()
+		}
 	}
 
 	webSocketError(ws: WebSocket) {
