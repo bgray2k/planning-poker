@@ -12,6 +12,17 @@ const ROOM_ID_PATTERN = /^[A-Z0-9]{6}$/
 export default {
 	async fetch(request: Request, env: Env): Promise<Response> {
 		const url = new URL(request.url)
+		if (url.pathname === '/admin/room-count') {
+			if (request.method !== 'GET') return new Response('Method not allowed', { status: 405 })
+			const authorization = request.headers.get('Authorization')
+			if (!env.ADMIN_TOKEN || authorization !== `Bearer ${env.ADMIN_TOKEN}`) {
+				return new Response('Unauthorized', { status: 401 })
+			}
+
+			const registry = env.ROOM_REGISTRY.get(env.ROOM_REGISTRY.idFromName('global'))
+			return registry.fetch(new Request('https://internal/count'))
+		}
+
 		if (url.pathname === '/admin/clear-all') {
 			if (request.method !== 'POST') return new Response('Method not allowed', { status: 405 })
 			const authorization = request.headers.get('Authorization')

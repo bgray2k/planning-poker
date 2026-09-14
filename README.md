@@ -36,6 +36,15 @@ curl -X POST https://realtime.example.com/admin/clear-all \
 
 The endpoint returns the number of rooms cleared. Keep the token out of source control and use HTTPS only.
 
+To view the number of active rooms:
+
+```bash
+curl https://realtime.example.com/admin/room-count \
+	-H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+It returns JSON such as `{ "roomCount": 3 }`.
+
 ## Project structure
 
 ```

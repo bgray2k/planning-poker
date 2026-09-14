@@ -106,11 +106,17 @@ export class Room {
 	private roomId: string | null = null
 	private readonly clearingSockets = new Set<WebSocket>()
 
-	constructor(private readonly state: DurableObjectState, _env: unknown) {}
+	constructor(
+		private readonly state: DurableObjectState,
+		private readonly env: { ROOM_REGISTRY: DurableObjectNamespace },
+	) {}
 
 	private async clearRoom() {
 		for (const ws of this.state.getWebSockets()) {
 			this.clearingSockets.add(ws)
+			const attachment = this.connectionAttachment(ws)
+			attachment.participantId = null
+			ws.serializeAttachment(attachment)
 			ws.close(1001, 'Room cleared by administrator')
 		}
 		this.roomPromise = null
@@ -404,6 +410,11 @@ export class Room {
 		if (Object.keys(room.participants).length === 0) {
 			this.roomPromise = null
 			await this.state.storage.delete(ROOM_STORAGE_KEY)
+			const registry = this.env.ROOM_REGISTRY.get(this.env.ROOM_REGISTRY.idFromName('global'))
+			await registry.fetch(new Request('https://internal/unregister', {
+				method: 'POST',
+				body: this.roomId ?? '',
+			}))
 			return
 		}
 
@@ -446,6 +457,19 @@ export class RoomRegistry {
 			}))
 			await this.state.storage.delete(ROOM_IDS_STORAGE_KEY)
 			return Response.json({ clearedRooms: roomIds.length })
+		}
+
+		if (request.method === 'GET' && pathname === '/count') {
+			return Response.json({ roomCount: roomIds.length })
+		}
+
+		if (request.method === 'POST' && pathname === '/unregister') {
+			const roomId = await request.text()
+			const remainingRoomIds = roomIds.filter((currentRoomId) => currentRoomId !== roomId)
+			if (remainingRoomIds.length !== roomIds.length) {
+				await this.state.storage.put(ROOM_IDS_STORAGE_KEY, remainingRoomIds)
+			}
+			return new Response('Unregistered')
 		}
 
 		return new Response('Not found', { status: 404 })
