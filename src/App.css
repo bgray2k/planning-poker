@@ -65,7 +65,7 @@
 
 .home__panel input:focus,
 .join input:focus {
-  border-color: #5850f7;
+  border-color: #625afa;
   outline: 3px solid rgba(88, 80, 247, 0.2);
   outline-offset: 1px;
 }
@@ -81,10 +81,10 @@
 .home__actions button,
 .join__actions button {
   padding: 0.45rem 0.85rem;
-  border: 1px solid #5850f7;
+  border: 1px solid #625afa;
   border-radius: 6px;
   background: var(--bg);
-  color: #5850f7;
+  color: #625afa;
   font: inherit;
   font-weight: 600;
   cursor: pointer;
@@ -93,7 +93,7 @@
 
 .home__actions button:first-child,
 .join__actions button:first-child {
-  background: #5850f7;
+  background: #625afa;
   color: #fff;
   box-shadow: 0 2px 4px rgba(88, 80, 247, 0.3);
 }
@@ -193,10 +193,10 @@
 
 .vote-deck-selector button {
   padding: 0.3rem 0.55rem;
-  border: 2px solid #5850f7;
+  border: 2px solid #625afa;
   border-radius: 5px;
   background: var(--bg);
-  color: #5850f7;
+  color: #625afa;
   font: bold 0.75rem/1.25rem sans-serif;
   font-size: 0.75rem;
   cursor: pointer;
@@ -207,8 +207,8 @@
 }
 
 .vote-deck-selector button[aria-pressed='true'] {
-  border-color: #5850f7;
-  background: #5850f7;
+  border-color: #625afa;
+  background: #625afa;
   color: #fff;
   font-weight: 600;
   box-shadow: 0 1px 3px rgba(88, 80, 247, 0.35);
@@ -459,8 +459,8 @@
 }
 
 .seat__card--voted {
-  border-color: #5850f7;
-  background: #5850f7;
+  border-color: #625afa;
+  background: #625afa;
   color: #fff;
   font-weight: 700;
 }
@@ -469,14 +469,14 @@
   width: 1rem;
   height: 1rem;
   border: 2px solid #d1d5db;
-  border-top-color: #5850f7;
+  border-top-color: #625afa;
   border-radius: 50%;
   animation: seat-spinner 2s linear infinite;
 }
 
 .seat__spectator {
   display: flex;
-  color: #5850f7;
+  color: #625afa;
 }
 
 @keyframes seat-spinner {
@@ -513,9 +513,9 @@
   width: 3rem;
   height: 4.25rem;
   border-radius: 8px;
-  border: 2px solid #5850f7;
+  border: 2px solid #625afa;
   background: var(--bg);
-  color: #5850f7;
+  color: #625afa;
   font-size: 1.1rem;
   cursor: pointer;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
@@ -539,7 +539,7 @@
 }
 
 .card--selected {
-  border-color: #5850f7;
+  border-color: #625afa;
   background: #eef2ff;
 }
 
@@ -599,7 +599,7 @@
   position: relative;
   width: 100%;
   min-height: 2px;
-  background: #5850f7;
+  background: #625afa;
   border-radius: 4px 4px 0 0;
   transition: height 200ms ease;
 }
@@ -608,7 +608,7 @@
   margin-top: 0.3rem;
   font-size: 0.85rem;
   font-weight: 600;
-  color: #5850f7;
+  color: #625afa;
 }
 
 .vote-results__average {
@@ -624,9 +624,9 @@
 
 .reveal-controls button {
   padding: 0.45rem 0.85rem;
-  border: 1px solid #5850f7;
+  border: 1px solid #625afa;
   border-radius: 6px;
-  background: #5850f7;
+  background: #625afa;
   color: #fff;
   font: inherit;
   font-weight: 600;
