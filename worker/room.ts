@@ -107,6 +107,12 @@ export class Room {
 
 	constructor(private readonly state: DurableObjectState, _env: unknown) {}
 
+	private async clearRoom() {
+		for (const ws of this.state.getWebSockets()) ws.close(1001, 'Room cleared by administrator')
+		this.roomPromise = null
+		await this.state.storage.delete(ROOM_STORAGE_KEY)
+	}
+
 	private async getRoom(): Promise<StoredRoom> {
 		if (!this.roomPromise) {
 			this.roomPromise = this.state.storage
@@ -304,6 +310,11 @@ export class Room {
 	}
 
 	async fetch(request: Request): Promise<Response> {
+		if (request.method === 'POST' && new URL(request.url).pathname === '/internal/clear') {
+			await this.clearRoom()
+			return new Response('Room cleared')
+		}
+
 		if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
 			return new Response('Expected a WebSocket upgrade', { status: 426 })
 		}
@@ -403,5 +414,36 @@ export class Room {
 
 	private connectionAttachment(ws: WebSocket): ConnectionAttachment {
 		return ws.deserializeAttachment() as ConnectionAttachment
+	}
+}
+
+const ROOM_IDS_STORAGE_KEY = 'room-ids'
+
+export class RoomRegistry {
+	constructor(private readonly state: DurableObjectState, private readonly env: { ROOMS: DurableObjectNamespace }) {}
+
+	async fetch(request: Request): Promise<Response> {
+		const pathname = new URL(request.url).pathname
+		const roomIds = (await this.state.storage.get<string[]>(ROOM_IDS_STORAGE_KEY)) ?? []
+
+		if (request.method === 'POST' && pathname === '/register') {
+			const roomId = await request.text()
+			if (/^[A-Z0-9]{6}$/.test(roomId) && !roomIds.includes(roomId)) {
+				roomIds.push(roomId)
+				await this.state.storage.put(ROOM_IDS_STORAGE_KEY, roomIds)
+			}
+			return new Response('Registered')
+		}
+
+		if (request.method === 'POST' && pathname === '/clear-all') {
+			await Promise.all(roomIds.map((roomId) => {
+				const room = this.env.ROOMS.get(this.env.ROOMS.idFromName(roomId))
+				return room.fetch(new Request('https://internal/clear', { method: 'POST' }))
+			}))
+			await this.state.storage.delete(ROOM_IDS_STORAGE_KEY)
+			return Response.json({ clearedRooms: roomIds.length })
+		}
+
+		return new Response('Not found', { status: 404 })
 	}
 }

@@ -19,6 +19,23 @@ npm run dev:all   # runs Vite (5173) + the WS room server (8787) together
 
 Or run them separately with `npm run dev` and `npm run server`.
 
+### Clearing deployed rooms
+
+Set the administrator token once with Wrangler:
+
+```bash
+npx wrangler secret put ADMIN_TOKEN
+```
+
+Then clear all rooms registered by the worker:
+
+```bash
+curl -X POST https://realtime.example.com/admin/clear-all \
+	-H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+The endpoint returns the number of rooms cleared. Keep the token out of source control and use HTTPS only.
+
 ## Project structure
 
 ```
