@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
-import type {
-  CardValue,
-  ClientMessage,
-  RoomStateView,
-  ReactionCount,
-  ServerMessage,
-  VoteDeckType,
+import {
+  AFK_TIMEOUT_MESSAGE,
+  type CardValue,
+  type ClientMessage,
+  type RoomStateView,
+  type ReactionCount,
+  type ServerMessage,
+  type VoteDeckType,
 } from '../../shared/protocol.ts'
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8787'
@@ -51,7 +52,14 @@ export function useRoomConnection(roomId: string, name: string | null, isSpectat
     ws.addEventListener('message', (event) => {
       const message: ServerMessage = JSON.parse(event.data)
       if (message.type === 'state') setState(message.state)
-      if (message.type === 'error') setError(message.message)
+      if (message.type === 'error') {
+        setError(message.message)
+        if (message.message === AFK_TIMEOUT_MESSAGE) {
+          window.setTimeout(() => {
+            window.location.assign('/')
+          }, 300)
+        }
+      }
       if (message.type === 'hostTransferred') {
         setNotification(`${message.actorName} made ${message.targetName} the host!`)
         if (notificationTimerRef.current !== null) window.clearTimeout(notificationTimerRef.current)
@@ -68,7 +76,12 @@ export function useRoomConnection(roomId: string, name: string | null, isSpectat
       }
     })
 
-    ws.addEventListener('close', () => setConnected(false))
+    ws.addEventListener('close', (event) => {
+      setConnected(false)
+      if (event.reason === AFK_TIMEOUT_MESSAGE) {
+        window.location.assign('/')
+      }
+    })
 
     function send(message: ClientMessage) {
       ws.send(JSON.stringify(message))

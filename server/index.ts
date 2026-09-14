@@ -5,6 +5,9 @@ import { createServer } from 'node:http'
 import { nanoid } from 'nanoid'
 import { WebSocketServer, type WebSocket } from 'ws'
 import {
+  AFK_CHECK_INTERVAL_MS,
+  AFK_TIMEOUT_MESSAGE,
+  AFK_TIMEOUT_MS,
   MAX_PARTICIPANTS,
   REACTION_COUNTS,
   VOTE_DECKS,
@@ -116,12 +119,25 @@ function handleJoin(ws: WebSocket, roomId: string, name: string, isSpectator: bo
     isFacilitator,
     isSpectator,
     ws,
-    lastReactionAt: 0,
+    lastReactionAt: Date.now(),
   })
   room.order.push(participantId)
   connections.set(ws, { roomId, participantId })
 
   broadcastState(room)
+}
+
+function disconnectInactiveParticipants() {
+  const now = Date.now()
+
+  for (const room of rooms.values()) {
+    for (const participant of room.participants.values()) {
+      if (now - participant.lastReactionAt >= AFK_TIMEOUT_MS) {
+        send(participant.ws, { type: 'error', message: AFK_TIMEOUT_MESSAGE })
+        participant.ws.close(1000, AFK_TIMEOUT_MESSAGE)
+      }
+    }
+  }
 }
 
 function handleVote(room: Room, participantId: string, value: CardValue) {
@@ -264,8 +280,13 @@ wss.on('connection', (ws, req) => {
       return
     }
 
+    const lastSeenAt = Date.now()
     const meta = connections.get(ws)
     const room = meta && rooms.get(meta.roomId)
+    if (meta && room && room.participants.get(meta.participantId)) {
+      room.participants.get(meta.participantId)!.lastReactionAt = lastSeenAt
+    }
+
     if (!meta || !room) {
       send(ws, { type: 'error', message: 'Join the room before sending actions' })
       return
@@ -298,6 +319,8 @@ wss.on('connection', (ws, req) => {
 
   ws.on('close', () => handleClose(ws))
 })
+
+setInterval(disconnectInactiveParticipants, AFK_CHECK_INTERVAL_MS)
 
 const PORT = 8787
 httpServer.listen(PORT, () => {

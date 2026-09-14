@@ -1,4 +1,7 @@
 import {
+	AFK_CHECK_INTERVAL_MS,
+	AFK_TIMEOUT_MESSAGE,
+	AFK_TIMEOUT_MS,
 	MAX_PARTICIPANTS,
 	REACTION_COUNTS,
 	VOTE_DECKS,
@@ -30,6 +33,7 @@ interface ConnectionAttachment {
 	messageWindowStart: number
 	messageCount: number
 	lastReactionAt: number
+	lastActivityAt: number
 }
 
 const ROOM_STORAGE_KEY = 'room'
@@ -106,6 +110,10 @@ export class Room {
 	private roomId: string | null = null
 
 	constructor(private readonly state: DurableObjectState, _env: unknown) {}
+
+	private scheduleAfkCheck() {
+		void this.state.storage.setAlarm(Date.now() + AFK_CHECK_INTERVAL_MS)
+	}
 
 	private async getRoom(): Promise<StoredRoom> {
 		if (!this.roomPromise) {
@@ -200,9 +208,12 @@ export class Room {
 		room.order.push(participantId)
 		const attachment = this.connectionAttachment(ws)
 		attachment.participantId = participantId
+		attachment.lastActivityAt = Date.now()
 		ws.serializeAttachment(attachment)
+		if (this.state.getWebSockets().length > 0) this.scheduleAfkCheck()
 		await this.saveRoom(room)
 		await this.broadcastState(room)
+		this.scheduleAfkCheck()
 	}
 
 	private async handleAction(ws: WebSocket, message: Exclude<ClientMessage, { type: 'join' }>) {
@@ -211,6 +222,10 @@ export class Room {
 			this.sendError(ws, 'Join the room before sending actions')
 			return
 		}
+
+		const attachment = this.connectionAttachment(ws)
+		attachment.lastActivityAt = Date.now()
+		ws.serializeAttachment(attachment)
 
 		const room = await this.getRoom()
 		const participant = room.participants[participantId]
@@ -323,12 +338,18 @@ export class Room {
 			messageWindowStart: Date.now(),
 			messageCount: 0,
 			lastReactionAt: 0,
+			lastActivityAt: Date.now(),
 		} satisfies ConnectionAttachment)
 
+		this.scheduleAfkCheck()
 		return new Response(null, { status: 101, webSocket: client })
 	}
 
 	async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer) {
+		const attachment = this.connectionAttachment(ws)
+		attachment.lastActivityAt = Date.now()
+		ws.serializeAttachment(attachment)
+
 		const rawBytes = typeof message === 'string'
 			? message.length > MAX_MESSAGE_BYTES
 				? MAX_MESSAGE_BYTES + 1
@@ -340,7 +361,6 @@ export class Room {
 			return
 		}
 
-		const attachment = this.connectionAttachment(ws)
 		const now = Date.now()
 		if (now - attachment.messageWindowStart >= MESSAGE_WINDOW_MS) {
 			attachment.messageWindowStart = now
@@ -394,6 +414,21 @@ export class Room {
 		if (wasFacilitator) this.promoteNextFacilitator(room)
 		await this.saveRoom(room)
 		await this.broadcastState(room)
+	}
+
+	async alarm() {
+		const room = await this.getRoom()
+		const now = Date.now()
+		for (const ws of this.state.getWebSockets()) {
+			const participantId = this.participantIdFor(ws)
+			if (!participantId || !room.participants[participantId]) continue
+			const attachment = this.connectionAttachment(ws)
+			if (now - attachment.lastActivityAt >= AFK_TIMEOUT_MS) {
+				this.send(ws, { type: 'error', message: AFK_TIMEOUT_MESSAGE })
+				ws.close(1000, AFK_TIMEOUT_MESSAGE)
+			}
+		}
+		this.scheduleAfkCheck()
 	}
 
 	webSocketError(ws: WebSocket) {
