@@ -104,24 +104,8 @@ function parseClientMessage(value: unknown): ClientMessage | null {
 export class Room {
 	private roomPromise: Promise<StoredRoom> | null = null
 	private roomId: string | null = null
-	private readonly clearingSockets = new Set<WebSocket>()
 
-	constructor(
-		private readonly state: DurableObjectState,
-		private readonly env: { ROOM_REGISTRY: DurableObjectNamespace },
-	) {}
-
-	private async clearRoom() {
-		for (const ws of this.state.getWebSockets()) {
-			this.clearingSockets.add(ws)
-			const attachment = this.connectionAttachment(ws)
-			attachment.participantId = null
-			ws.serializeAttachment(attachment)
-			ws.close(1001, 'Room cleared by administrator')
-		}
-		this.roomPromise = null
-		await this.state.storage.delete(ROOM_STORAGE_KEY)
-	}
+	constructor(private readonly state: DurableObjectState, _env: unknown) {}
 
 	private async getRoom(): Promise<StoredRoom> {
 		if (!this.roomPromise) {
@@ -320,11 +304,6 @@ export class Room {
 	}
 
 	async fetch(request: Request): Promise<Response> {
-		if (request.method === 'POST' && new URL(request.url).pathname === '/internal/clear') {
-			await this.clearRoom()
-			return new Response('Room cleared')
-		}
-
 		if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
 			return new Response('Expected a WebSocket upgrade', { status: 426 })
 		}
@@ -398,7 +377,6 @@ export class Room {
 	}
 
 	async webSocketClose(ws: WebSocket) {
-		if (this.clearingSockets.delete(ws)) return
 		const participantId = this.participantIdFor(ws)
 		if (!participantId) return
 
@@ -410,11 +388,6 @@ export class Room {
 		if (Object.keys(room.participants).length === 0) {
 			this.roomPromise = null
 			await this.state.storage.delete(ROOM_STORAGE_KEY)
-			const registry = this.env.ROOM_REGISTRY.get(this.env.ROOM_REGISTRY.idFromName('global'))
-			await registry.fetch(new Request('https://internal/unregister', {
-				method: 'POST',
-				body: this.roomId ?? '',
-			}))
 			return
 		}
 
@@ -429,49 +402,5 @@ export class Room {
 
 	private connectionAttachment(ws: WebSocket): ConnectionAttachment {
 		return ws.deserializeAttachment() as ConnectionAttachment
-	}
-}
-
-const ROOM_IDS_STORAGE_KEY = 'room-ids'
-
-export class RoomRegistry {
-	constructor(private readonly state: DurableObjectState, private readonly env: { ROOMS: DurableObjectNamespace }) {}
-
-	async fetch(request: Request): Promise<Response> {
-		const pathname = new URL(request.url).pathname
-		const roomIds = (await this.state.storage.get<string[]>(ROOM_IDS_STORAGE_KEY)) ?? []
-
-		if (request.method === 'POST' && pathname === '/register') {
-			const roomId = await request.text()
-			if (/^[A-Z0-9]{6}$/.test(roomId) && !roomIds.includes(roomId)) {
-				roomIds.push(roomId)
-				await this.state.storage.put(ROOM_IDS_STORAGE_KEY, roomIds)
-			}
-			return new Response('Registered')
-		}
-
-		if (request.method === 'POST' && pathname === '/clear-all') {
-			await Promise.all(roomIds.map((roomId) => {
-				const room = this.env.ROOMS.get(this.env.ROOMS.idFromName(roomId))
-				return room.fetch(new Request('https://internal/clear', { method: 'POST' }))
-			}))
-			await this.state.storage.delete(ROOM_IDS_STORAGE_KEY)
-			return Response.json({ clearedRooms: roomIds.length })
-		}
-
-		if (request.method === 'GET' && pathname === '/count') {
-			return Response.json({ roomCount: roomIds.length })
-		}
-
-		if (request.method === 'POST' && pathname === '/unregister') {
-			const roomId = await request.text()
-			const remainingRoomIds = roomIds.filter((currentRoomId) => currentRoomId !== roomId)
-			if (remainingRoomIds.length !== roomIds.length) {
-				await this.state.storage.put(ROOM_IDS_STORAGE_KEY, remainingRoomIds)
-			}
-			return new Response('Unregistered')
-		}
-
-		return new Response('Not found', { status: 404 })
 	}
 }
