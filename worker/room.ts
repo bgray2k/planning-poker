@@ -2,6 +2,7 @@ import {
 	AFK_CHECK_INTERVAL_MS,
 	AFK_TIMEOUT_MESSAGE,
 	AFK_TIMEOUT_MS,
+	END_SESSION_MESSAGE,
 	MAX_PARTICIPANTS,
 	REACTION_COUNTS,
 	VOTE_DECKS,
@@ -94,6 +95,9 @@ function parseClientMessage(value: unknown): ClientMessage | null {
 			return typeof value.participantId === 'string'
 				? { type: 'makeFacilitator', participantId: value.participantId }
 				: null
+		case 'claimFacilitator':
+		case 'endSession':
+			return { type: value.type }
 		case 'throwEmoji':
 			return typeof value.targetId === 'string' &&
 				typeof value.emoji === 'string' &&
@@ -113,6 +117,10 @@ export class Room {
 
 	private scheduleAfkCheck() {
 		void this.state.storage.setAlarm(Date.now() + AFK_CHECK_INTERVAL_MS)
+	}
+
+	private async deleteAlarms() {
+		await this.state.storage.deleteAlarm()
 	}
 
 	private async getRoom(): Promise<StoredRoom> {
@@ -284,6 +292,22 @@ export class Room {
 							targetName: target.name,
 						})
 					}
+				}
+				break
+			case 'claimFacilitator':
+				for (const currentParticipant of Object.values(room.participants)) {
+					currentParticipant.isFacilitator = currentParticipant.id === participantId
+				}
+				break
+			case 'endSession':
+				if (participant.isFacilitator) {
+					for (const currentWs of this.state.getWebSockets()) {
+						currentWs.close(1000, END_SESSION_MESSAGE)
+					}
+					this.roomPromise = null
+					await this.deleteAlarms()
+					await this.state.storage.deleteAll()
+					return
 				}
 				break
 			case 'throwEmoji':

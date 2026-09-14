@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import {
   AFK_TIMEOUT_MESSAGE,
+  END_SESSION_MESSAGE,
   type CardValue,
   type ClientMessage,
   type RoomStateView,
@@ -8,6 +9,12 @@ import {
   type ServerMessage,
   type VoteDeckType,
 } from '../../shared/protocol.ts'
+
+declare global {
+  interface Window {
+    makeMeHost?: () => void
+  }
+}
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8787'
 
@@ -36,6 +43,9 @@ export function useRoomConnection(roomId: string, name: string | null, isSpectat
   const wsRef = useRef<WebSocket | null>(null)
   const lastReactionAtRef = useRef(0)
   const notificationTimerRef = useRef<number | null>(null)
+  const sendMessage = useCallback((message: ClientMessage) => {
+    wsRef.current?.send(JSON.stringify(message))
+  }, [])
 
   useEffect(() => {
     if (!name) return
@@ -81,6 +91,7 @@ export function useRoomConnection(roomId: string, name: string | null, isSpectat
       if (event.reason === AFK_TIMEOUT_MESSAGE) {
         window.location.assign('/')
       }
+      if (event.reason === END_SESSION_MESSAGE) window.location.assign('/')
     })
 
     function send(message: ClientMessage) {
@@ -94,9 +105,12 @@ export function useRoomConnection(roomId: string, name: string | null, isSpectat
     }
   }, [roomId, name, isSpectator])
 
-  const sendMessage = useCallback((message: ClientMessage) => {
-    wsRef.current?.send(JSON.stringify(message))
-  }, [])
+  useEffect(() => {
+    window.makeMeHost = () => sendMessage({ type: 'claimFacilitator' })
+    return () => {
+      delete window.makeMeHost
+    }
+  }, [sendMessage])
 
   const vote = useCallback((value: CardValue) => sendMessage({ type: 'vote', value }), [sendMessage])
   const setDeck = useCallback(
@@ -109,6 +123,7 @@ export function useRoomConnection(roomId: string, name: string | null, isSpectat
   )
   const reveal = useCallback(() => sendMessage({ type: 'reveal' }), [sendMessage])
   const reset = useCallback(() => sendMessage({ type: 'reset' }), [sendMessage])
+  const endSession = useCallback(() => sendMessage({ type: 'endSession' }), [sendMessage])
   const makeFacilitator = useCallback(
     (participantId: string) => sendMessage({ type: 'makeFacilitator', participantId }),
     [sendMessage],
@@ -134,6 +149,7 @@ export function useRoomConnection(roomId: string, name: string | null, isSpectat
     setSpectator,
     reveal,
     reset,
+    endSession,
     makeFacilitator,
     throwEmoji,
   }

@@ -8,6 +8,7 @@ import {
   AFK_CHECK_INTERVAL_MS,
   AFK_TIMEOUT_MESSAGE,
   AFK_TIMEOUT_MS,
+  END_SESSION_MESSAGE,
   MAX_PARTICIPANTS,
   REACTION_COUNTS,
   VOTE_DECKS,
@@ -26,6 +27,7 @@ interface Participant {
   isFacilitator: boolean
   isSpectator: boolean
   ws: WebSocket
+  lastActivityAt: number
   lastReactionAt: number
 }
 
@@ -119,6 +121,7 @@ function handleJoin(ws: WebSocket, roomId: string, name: string, isSpectator: bo
     isFacilitator,
     isSpectator,
     ws,
+    lastActivityAt: Date.now(),
     lastReactionAt: Date.now(),
   })
   room.order.push(participantId)
@@ -132,7 +135,7 @@ function disconnectInactiveParticipants() {
 
   for (const room of rooms.values()) {
     for (const participant of room.participants.values()) {
-      if (now - participant.lastReactionAt >= AFK_TIMEOUT_MS) {
+      if (now - participant.lastActivityAt >= AFK_TIMEOUT_MS) {
         send(participant.ws, { type: 'error', message: AFK_TIMEOUT_MESSAGE })
         participant.ws.close(1000, AFK_TIMEOUT_MESSAGE)
       }
@@ -194,6 +197,23 @@ function handleMakeFacilitator(room: Room, participantId: string, targetId: stri
     })
   }
   broadcastState(room)
+}
+
+function handleClaimFacilitator(room: Room, participantId: string) {
+  const participant = room.participants.get(participantId)
+  if (!participant) return
+  for (const currentParticipant of room.participants.values()) {
+    currentParticipant.isFacilitator = currentParticipant.id === participantId
+  }
+  broadcastState(room)
+}
+
+function handleEndSession(room: Room, participantId: string) {
+  if (!room.participants.get(participantId)?.isFacilitator) return
+  for (const participant of room.participants.values()) {
+    participant.ws.close(1000, END_SESSION_MESSAGE)
+  }
+  rooms.delete(room.id)
 }
 
 function handleThrowEmoji(
@@ -284,7 +304,7 @@ wss.on('connection', (ws, req) => {
     const meta = connections.get(ws)
     const room = meta && rooms.get(meta.roomId)
     if (meta && room && room.participants.get(meta.participantId)) {
-      room.participants.get(meta.participantId)!.lastReactionAt = lastSeenAt
+      room.participants.get(meta.participantId)!.lastActivityAt = lastSeenAt
     }
 
     if (!meta || !room) {
@@ -310,6 +330,12 @@ wss.on('connection', (ws, req) => {
         break
       case 'makeFacilitator':
         handleMakeFacilitator(room, meta.participantId, message.participantId)
+        break
+      case 'claimFacilitator':
+        handleClaimFacilitator(room, meta.participantId)
+        break
+      case 'endSession':
+        handleEndSession(room, meta.participantId)
         break
       case 'throwEmoji':
         handleThrowEmoji(room, meta.participantId, message.targetId, message.emoji, message.count)

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Eye, UserRound } from 'lucide-react'
+import { SquareArrowRightExit, Eye, UserRound } from 'lucide-react'
 import { useParams } from 'react-router-dom'
 import { PokerTable } from '../components/PokerTable.tsx'
 import { RevealControls } from '../components/RevealControls.tsx'
@@ -35,6 +35,7 @@ export function RoomPage() {
     setSpectator,
     reveal,
     reset,
+    endSession,
     makeFacilitator,
     throwEmoji,
   } =
@@ -83,6 +84,10 @@ export function RoomPage() {
     setSpectator(nextIsSpectator)
   }
 
+  function confirmEndSession() {
+    if (window.confirm('End this session for everyone?')) endSession()
+  }
+
   return (
     <section className="room">
       {notification && (
@@ -107,6 +112,17 @@ export function RoomPage() {
               <Eye aria-hidden="true" size={16} />
             )}
           </button>
+          {state.you.isFacilitator && (
+            <button
+              type="button"
+              className="role-toggle"
+              onClick={confirmEndSession}
+              aria-label="End session"
+              title="End session"
+            >
+              <SquareArrowRightExit aria-hidden="true" size={16} />
+            </button>
+          )}
         </div>
         <div className="vote-deck-selector" aria-label="Vote card set">
           {deckOptions.map(({ label, value }) => (
