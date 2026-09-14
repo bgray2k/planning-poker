@@ -42,11 +42,13 @@ export type ClientMessage =
   | { type: 'setSpectator'; isSpectator: boolean }
   | { type: 'reveal' }
   | { type: 'reset' }
+  | { type: 'makeFacilitator'; participantId: string }
   | { type: 'throwEmoji'; targetId: string; emoji: string; count?: ReactionCount }
 
 export type ServerMessage =
   | { type: 'state'; state: RoomStateView }
   | { type: 'error'; message: string }
+  | { type: 'hostTransferred'; actorName: string; targetName: string }
   | {
       type: 'emojiThrown'
       id: string

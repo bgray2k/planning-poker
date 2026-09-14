@@ -30,9 +30,11 @@ export function useRoomConnection(roomId: string, name: string | null, isSpectat
   const [state, setState] = useState<RoomStateView | null>(null)
   const [connected, setConnected] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [notification, setNotification] = useState<string | null>(null)
   const [reactions, setReactions] = useState<EmojiReaction[]>([])
   const wsRef = useRef<WebSocket | null>(null)
   const lastReactionAtRef = useRef(0)
+  const notificationTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
     if (!name) return
@@ -50,6 +52,14 @@ export function useRoomConnection(roomId: string, name: string | null, isSpectat
       const message: ServerMessage = JSON.parse(event.data)
       if (message.type === 'state') setState(message.state)
       if (message.type === 'error') setError(message.message)
+      if (message.type === 'hostTransferred') {
+        setNotification(`${message.actorName} made ${message.targetName} the host!`)
+        if (notificationTimerRef.current !== null) window.clearTimeout(notificationTimerRef.current)
+        notificationTimerRef.current = window.setTimeout(() => {
+          setNotification(null)
+          notificationTimerRef.current = null
+        }, 3000)
+      }
       if (message.type === 'emojiThrown') {
         setReactions((current) => [...current, message])
         window.setTimeout(() => {
@@ -67,6 +77,7 @@ export function useRoomConnection(roomId: string, name: string | null, isSpectat
     return () => {
       ws.close()
       wsRef.current = null
+      if (notificationTimerRef.current !== null) window.clearTimeout(notificationTimerRef.current)
     }
   }, [roomId, name, isSpectator])
 
@@ -85,6 +96,10 @@ export function useRoomConnection(roomId: string, name: string | null, isSpectat
   )
   const reveal = useCallback(() => sendMessage({ type: 'reveal' }), [sendMessage])
   const reset = useCallback(() => sendMessage({ type: 'reset' }), [sendMessage])
+  const makeFacilitator = useCallback(
+    (participantId: string) => sendMessage({ type: 'makeFacilitator', participantId }),
+    [sendMessage],
+  )
   const throwEmoji = useCallback(
     (targetId: string, emoji: string, count: ReactionCount = 1) => {
       const now = Date.now()
@@ -95,5 +110,18 @@ export function useRoomConnection(roomId: string, name: string | null, isSpectat
     [sendMessage],
   )
 
-  return { state, connected, error, reactions, vote, setDeck, setSpectator, reveal, reset, throwEmoji }
+  return {
+    state,
+    connected,
+    error,
+    notification,
+    reactions,
+    vote,
+    setDeck,
+    setSpectator,
+    reveal,
+    reset,
+    makeFacilitator,
+    throwEmoji,
+  }
 }

@@ -86,6 +86,10 @@ function parseClientMessage(value: unknown): ClientMessage | null {
 		case 'reveal':
 		case 'reset':
 			return { type: value.type }
+		case 'makeFacilitator':
+			return typeof value.participantId === 'string'
+				? { type: 'makeFacilitator', participantId: value.participantId }
+				: null
 		case 'throwEmoji':
 			return typeof value.targetId === 'string' &&
 				typeof value.emoji === 'string' &&
@@ -250,6 +254,20 @@ export class Room {
 					room.revealed = false
 					for (const currentParticipant of Object.values(room.participants)) {
 						currentParticipant.vote = null
+					}
+				}
+				break
+			case 'makeFacilitator':
+				if (participant.isFacilitator && room.participants[message.participantId] && message.participantId !== participantId) {
+					const target = room.participants[message.participantId]
+					participant.isFacilitator = false
+					target.isFacilitator = true
+					for (const currentWs of this.state.getWebSockets()) {
+						this.send(currentWs, {
+							type: 'hostTransferred',
+							actorName: participant.name,
+							targetName: target.name,
+						})
 					}
 				}
 				break

@@ -164,6 +164,22 @@ function handleReset(room: Room, participantId: string) {
   broadcastState(room)
 }
 
+function handleMakeFacilitator(room: Room, participantId: string, targetId: string) {
+  const participant = room.participants.get(participantId)
+  const target = room.participants.get(targetId)
+  if (!participant?.isFacilitator || !target || target.id === participant.id) return
+  participant.isFacilitator = false
+  target.isFacilitator = true
+  for (const currentParticipant of room.participants.values()) {
+    send(currentParticipant.ws, {
+      type: 'hostTransferred',
+      actorName: participant.name,
+      targetName: target.name,
+    })
+  }
+  broadcastState(room)
+}
+
 function handleThrowEmoji(
   room: Room,
   participantId: string,
@@ -270,6 +286,9 @@ wss.on('connection', (ws, req) => {
         break
       case 'reset':
         handleReset(room, meta.participantId)
+        break
+      case 'makeFacilitator':
+        handleMakeFacilitator(room, meta.participantId, message.participantId)
         break
       case 'throwEmoji':
         handleThrowEmoji(room, meta.participantId, message.targetId, message.emoji, message.count)

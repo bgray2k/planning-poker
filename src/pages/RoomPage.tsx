@@ -24,7 +24,20 @@ export function RoomPage() {
   )
   const [nameInput, setNameInput] = useState('')
 
-  const { state, connected, error, reactions, vote, setDeck, setSpectator, reveal, reset, throwEmoji } =
+  const {
+    state,
+    connected,
+    error,
+    notification,
+    reactions,
+    vote,
+    setDeck,
+    setSpectator,
+    reveal,
+    reset,
+    makeFacilitator,
+    throwEmoji,
+  } =
     useRoomConnection(roomId, name, isSpectator)
 
   function joinRoom(spectator: boolean) {
@@ -71,6 +84,11 @@ export function RoomPage() {
 
   return (
     <section className="room">
+      {notification && (
+        <div className="room__notification" role="status" aria-live="polite">
+          {notification}
+        </div>
+      )}
       <header className="room__header">
         <div className="room__title">
           <h1>Room {state.roomId}</h1>
@@ -109,6 +127,8 @@ export function RoomPage() {
         participants={state.participants}
         revealed={state.revealed}
         reactions={reactions}
+        canMakeFacilitator={state.you.isFacilitator}
+        onMakeFacilitator={makeFacilitator}
         onThrowEmoji={throwEmoji}
         controls={
           <RevealControls
