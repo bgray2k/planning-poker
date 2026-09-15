@@ -10,7 +10,7 @@ export const VOTE_DECKS = {
 } as const
 
 export const MAX_PARTICIPANTS = 20
-export const REACTION_EMOJIS = ['🪨', '✏️', '🚩', '🛩️', '🚌'] as const
+export const REACTION_EMOJIS = ['🧻', '✏️', '🚩', '✈️', '🚌'] as const
 export const REACTION_COUNTS = [1, 3, 5] as const
 export const AFK_TIMEOUT_MS = 60 * 60 * 1000
 export const AFK_CHECK_INTERVAL_MS = 5 * 60 * 1000

@@ -8,7 +8,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from 'react'
-import type { Theme } from 'emoji-picker-react'
+import type { EmojiStyle, Theme } from 'emoji-picker-react'
 import { Eye, SmilePlus } from 'lucide-react'
 import {
   REACTION_COUNTS,
@@ -20,6 +20,8 @@ import {
 import type { EmojiReaction } from '../hooks/useRoomConnection.ts'
 
 const EmojiPicker = lazy(() => import('emoji-picker-react'))
+const Emoji = lazy(() => import('emoji-picker-react').then(({ Emoji: EmojiComponent }) => ({ default: EmojiComponent })))
+const APPLE_EMOJI_STYLE = 'apple' as EmojiStyle
 
 interface PokerTableProps {
   readonly participants: ParticipantView[]
@@ -55,6 +57,12 @@ function reactionStyle(reaction: EmojiReaction): CSSProperties {
 
 function displayPlayerName(name: string): string {
   return name === 'Will' || name === 'will' ? `${name} 🚌` : name
+}
+
+function emojiToUnified(emoji: string): string {
+  return [...emoji]
+    .map((character) => (character.codePointAt(0) ?? 0).toString(16))
+    .join('-')
 }
 
 interface SeatPosition {
@@ -196,7 +204,9 @@ function SeatEmojiPicker({
                 aria-label={`Send ${emoji} to ${participant.name}`}
                 onClick={() => onThrowEmoji(participant.id, emoji, reactionCount)}
               >
-                {emoji}
+                <Suspense fallback={emoji}>
+                  <Emoji unified={emojiToUnified(emoji)} emojiStyle={APPLE_EMOJI_STYLE} size={22} />
+                </Suspense>
               </button>
             ))}
             <button
@@ -266,7 +276,9 @@ function PlayerSeat({
               style={reactionStyle(reaction)}
               aria-hidden="true"
             >
-              {reaction.emoji}
+              <Suspense fallback={reaction.emoji}>
+                <Emoji unified={emojiToUnified(reaction.emoji)} emojiStyle={APPLE_EMOJI_STYLE} size={22} />
+              </Suspense>
             </span>
           ))}
         </button>

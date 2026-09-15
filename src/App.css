@@ -421,6 +421,11 @@
   cursor: pointer;
 }
 
+.seat__emoji-button img {
+  display: block;
+  margin: auto;
+}
+
 .seat__emoji-button:hover,
 .seat__emoji-button:focus-visible {
   background: var(--accent-bg);
@@ -475,7 +480,7 @@
   outline-offset: 1px;
 }
 
-.seat--top .seat__emoji-picker--expanded {
+.seat--top .seat__picker-stack {
   top: calc(100% + 0.4rem);
   bottom: auto;
 }
@@ -489,6 +494,10 @@
   font-size: 1.35rem;
   line-height: 1;
   animation: emoji-reaction-left 4.2s linear forwards;
+}
+
+.seat__reaction img {
+  display: block;
 }
 
 .seat__reaction--from-right {
