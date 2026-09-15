@@ -68,7 +68,7 @@ export function HomePage() {
         </div>
       </div>
 
-      <div className="home__panel">
+      <div className="home__panel home__panel--join">
         <h2>Join a room</h2>
         <input
           placeholder="Your name"

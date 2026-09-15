@@ -101,13 +101,16 @@
 .home__actions,
 .join__actions {
   display: flex;
-  flex-wrap: wrap;
+  width: 100%;
+  flex-wrap: nowrap;
   justify-content: center;
   gap: 0.5rem;
 }
 
 .home__actions button,
 .join__actions button {
+  flex: 1 1 auto;
+  min-width: 0;
   padding: 0.45rem 0.85rem;
   border: 1px solid #625afa;
   border-radius: 6px;
@@ -200,6 +203,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.role-toggle:focus-visible,
+.share-link__button:focus-visible {
+  outline: 3px solid var(--accent-border);
+  outline-offset: 2px;
 }
 
 .share-link__status {
