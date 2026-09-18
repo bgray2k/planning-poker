@@ -51,11 +51,14 @@ export function HomePage() {
           <label htmlFor="room-code">Room code</label>
           <span
             className="room-code-field__tip"
-            title="Room codes are pre-defined. Please reach out to the developer for an approved room code."
             tabIndex={0}
             aria-label="Room codes are pre-defined. Please reach out to the developer for an approved room code."
+            aria-describedby="room-code-tooltip"
           >
             <Info aria-hidden="true" size={16} />
+            <span id="room-code-tooltip" className="room-code-field__tooltip" role="tooltip">
+              Room codes are pre-defined. Please reach out to the developer for an approved room code.
+            </span>
           </span>
           <input
             id="room-code"
