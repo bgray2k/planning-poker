@@ -39,7 +39,7 @@ interface ConnectionAttachment {
 
 const ROOM_STORAGE_KEY = 'room'
 const CARD_VALUES = new Set<string>(Object.values(VOTE_DECKS).flat())
-const ROOM_ID_PATTERN = /^[A-Z0-9]{6}$/
+const ALLOWED_ROOM_IDS = new Set(['NOVA', 'HORIZON'])
 const MAX_MESSAGE_BYTES = 4096
 const MESSAGE_WINDOW_MS = 10_000
 const MAX_MESSAGES_PER_WINDOW = 40
@@ -346,8 +346,8 @@ export class Room {
 		if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
 			return new Response('Expected a WebSocket upgrade', { status: 426 })
 		}
-		this.roomId = new URL(request.url).searchParams.get('room')?.trim() ?? null
-		if (!this.roomId || !ROOM_ID_PATTERN.test(this.roomId)) {
+		this.roomId = new URL(request.url).searchParams.get('room')?.trim().toUpperCase() ?? null
+		if (!this.roomId || !ALLOWED_ROOM_IDS.has(this.roomId)) {
 			return new Response('Invalid room id', { status: 400 })
 		}
 		if (this.state.getWebSockets().length >= MAX_CONNECTIONS_PER_ROOM) {

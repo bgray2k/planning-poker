@@ -41,6 +41,8 @@ interface Room {
 
 const rooms = new Map<string, Room>()
 const connections = new WeakMap<WebSocket, { roomId: string; participantId: string }>()
+const ALLOWED_ROOM_IDS = new Set(['NOVA', 'HORIZON'])
+const ROOM_NOT_FOUND_MESSAGE = 'Room does not exist'
 
 function getOrCreateRoom(roomId: string): Room {
   let room = rooms.get(roomId)
@@ -278,10 +280,10 @@ const wss = new WebSocketServer({ server: httpServer })
 
 wss.on('connection', (ws, req) => {
   const url = new URL(req.url ?? '', 'http://localhost')
-  const roomId = url.searchParams.get('room')
+  const roomId = url.searchParams.get('room')?.trim().toUpperCase()
 
-  if (!roomId) {
-    send(ws, { type: 'error', message: 'Missing room id' })
+  if (!roomId || !ALLOWED_ROOM_IDS.has(roomId)) {
+    send(ws, { type: 'error', message: ROOM_NOT_FOUND_MESSAGE })
     ws.close()
     return
   }

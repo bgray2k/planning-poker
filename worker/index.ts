@@ -5,7 +5,8 @@ export interface Env {
 	ALLOWED_ORIGIN: string
 }
 
-const ROOM_ID_PATTERN = /^[A-Z0-9]{6}$/
+const ALLOWED_ROOM_IDS = new Set(['NOVA', 'HORIZON'])
+const ROOM_NOT_FOUND_MESSAGE = 'Room does not exist'
 
 export default {
 	async fetch(request: Request, env: Env): Promise<Response> {
@@ -22,9 +23,9 @@ export default {
 			return new Response('Forbidden', { status: 403 })
 		}
 
-		const roomId = new URL(request.url).searchParams.get('room')?.trim()
-		if (!roomId || !ROOM_ID_PATTERN.test(roomId)) {
-			return new Response('Missing room id', { status: 400 })
+		const roomId = new URL(request.url).searchParams.get('room')?.trim().toUpperCase()
+		if (!roomId || !ALLOWED_ROOM_IDS.has(roomId)) {
+			return new Response(ROOM_NOT_FOUND_MESSAGE, { status: 404 })
 		}
 
 		const room = env.ROOMS.get(env.ROOMS.idFromName(roomId))
