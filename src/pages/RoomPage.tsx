@@ -23,6 +23,7 @@ export function RoomPage() {
     () => sessionStorage.getItem(`pp:spectator:${roomId}`) === 'true',
   )
   const [nameInput, setNameInput] = useState('')
+  const [showEndSessionDialog, setShowEndSessionDialog] = useState(false)
 
   const {
     state,
@@ -85,11 +86,41 @@ export function RoomPage() {
   }
 
   function confirmEndSession() {
-    if (window.confirm('End this session for everyone?')) endSession()
+    setShowEndSessionDialog(true)
+  }
+
+  function endRoomSession() {
+    setShowEndSessionDialog(false)
+    endSession()
   }
 
   return (
     <section className="room">
+      {showEndSessionDialog && (
+        <div className="dialog-backdrop" role="presentation">
+          <div
+            className="end-session-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="end-session-title"
+            aria-describedby="end-session-description"
+          >
+            <div className="end-session-dialog__accent" aria-hidden="true" />
+            <h2 id="end-session-title">End this session?</h2>
+            <p id="end-session-description">
+              Everyone in the room will be disconnected.
+            </p>
+            <div className="end-session-dialog__actions">
+              <button type="button" onClick={() => setShowEndSessionDialog(false)}>
+                Cancel
+              </button>
+              <button type="button" className="end-session-dialog__confirm" onClick={endRoomSession}>
+                End session
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {notification && (
         <div className="room__notification" role="status" aria-live="polite">
           {notification}
