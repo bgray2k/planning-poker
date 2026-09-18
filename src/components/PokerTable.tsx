@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react'
 import type { EmojiStyle, Theme } from 'emoji-picker-react'
-import { Eye, SmilePlus } from 'lucide-react'
+import { Crown, Eye, SmilePlus } from 'lucide-react'
 import {
   REACTION_COUNTS,
   REACTION_EMOJIS,
@@ -168,19 +168,23 @@ function SeatEmojiPicker({
 }: SeatEmojiPickerProps) {
   return (
     <div className={`seat__picker-stack${isVisible || isExpanded ? ' seat__picker-stack--visible' : ''}`}>
-      {isVisible && canMakeFacilitator && !participant.isFacilitator && (
-        <button
-          type="button"
-          className="seat__make-host"
-          onClick={() => onMakeFacilitator(participant.id)}
-        >
-          Make host
-        </button>
-      )}
       <div
         className={`seat__emoji-picker${isVisible ? ' seat__emoji-picker--visible' : ''}${isExpanded ? ' seat__emoji-picker--expanded' : ''}`}
         aria-label={`Send a reaction to ${participant.name}`}
       >
+        {isVisible && canMakeFacilitator && !participant.isFacilitator && (
+          <div className="seat__make-host-row">
+            <button
+              type="button"
+              className="seat__make-host"
+              aria-label={`Make ${participant.name} host`}
+              title={`Make ${participant.name} host`}
+              onClick={() => onMakeFacilitator(participant.id)}
+            >
+              <Crown aria-hidden="true" size={15} />
+            </button>
+          </div>
+        )}
         {isExpanded ? (
           <Suspense fallback={null}>
             <EmojiPicker

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { SquareArrowRightExit, Eye, UserRound } from 'lucide-react'
+import { Eye, LogIn, SquareArrowRightExit, UserRound } from 'lucide-react'
 import { useParams } from 'react-router-dom'
 import { PokerTable } from '../components/PokerTable.tsx'
 import { RevealControls } from '../components/RevealControls.tsx'
@@ -53,20 +53,25 @@ export function RoomPage() {
   if (!name) {
     return (
       <section className="join">
-        <h1>Join room {roomId}</h1>
-        <input
-          placeholder="Your name"
-          maxLength={12}
-          value={nameInput}
-          onChange={(e) => setNameInput(e.target.value)}
-        />
-        <div className="join__actions">
-          <button type="button" onClick={() => joinRoom(false)}>
-            Join
-          </button>
-          <button type="button" onClick={() => joinRoom(true)}>
-            Join as spectator
-          </button>
+        <span className="room-badge">ROOM / {roomId}</span>
+        <div className="join__panel">
+          <input
+            id="join-name"
+            placeholder="Your name"
+            maxLength={12}
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+          />
+          <div className="join__actions">
+            <button type="button" onClick={() => joinRoom(false)}>
+              <LogIn aria-hidden="true" size={17} />
+              Join
+            </button>
+            <button type="button" onClick={() => joinRoom(true)}>
+              <Eye aria-hidden="true" size={17} />
+              Join as spectator
+            </button>
+          </div>
         </div>
       </section>
     )

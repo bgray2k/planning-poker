@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Info } from 'lucide-react'
+import { Eye, Info, LogIn, Sparkles } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 const ALLOWED_ROOM_IDS = new Set(['NOVA', 'HORIZON'])
@@ -37,11 +37,18 @@ export function HomePage() {
           {notification}
         </div>
       )}
-      <h1 style={{ padding: '10px' }}>Planning Poker</h1>
+      <div className="entry-intro">
+        <span className="entry-intro__eyebrow">
+          <Sparkles aria-hidden="true" size={14} />
+          Team estimation
+        </span>
+        <h1>Planning Poker</h1>
+        <p></p>
+      </div>
 
       <div className="home__panel home__panel--join">
-        <h2>Join a room</h2>
         <input
+          id="home-name"
           placeholder="Your name"
           maxLength={12}
           value={joinName}
@@ -69,9 +76,11 @@ export function HomePage() {
         </div>
         <div className="home__actions">
           <button type="button" onClick={() => joinRoom(false)}>
+            <LogIn aria-hidden="true" size={17} />
             Join room
           </button>
           <button type="button" onClick={() => joinRoom(true)}>
+            <Eye aria-hidden="true" size={17} />
             Join as spectator
           </button>
         </div>
