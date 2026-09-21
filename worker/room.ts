@@ -3,6 +3,7 @@ import {
 	AFK_TIMEOUT_MESSAGE,
 	AFK_TIMEOUT_MS,
 	END_SESSION_MESSAGE,
+	KICKED_MESSAGE,
 	MAX_PARTICIPANTS,
 	REACTION_COUNTS,
 	VOTE_DECKS,
@@ -98,6 +99,10 @@ function parseClientMessage(value: unknown): ClientMessage | null {
 		case 'makeFacilitator':
 			return typeof value.participantId === 'string'
 				? { type: 'makeFacilitator', participantId: value.participantId }
+				: null
+		case 'kickParticipant':
+			return typeof value.participantId === 'string'
+				? { type: 'kickParticipant', participantId: value.participantId }
 				: null
 		case 'claimFacilitator':
 		case 'endSession':
@@ -283,10 +288,9 @@ export class Room {
 			case 'reveal':
 				if (
 					participant.isFacilitator &&
-					Object.values(room.participants).some((currentParticipant) => !currentParticipant.isSpectator) &&
 					Object.values(room.participants)
 						.filter((currentParticipant) => !currentParticipant.isSpectator)
-						.every((currentParticipant) => currentParticipant.vote !== null)
+						.some((currentParticipant) => currentParticipant.vote !== null)
 				) {
 					room.revealed = true
 				}
@@ -310,6 +314,21 @@ export class Room {
 							actorName: participant.name,
 							targetName: target.name,
 						})
+					}
+				}
+				break
+			case 'kickParticipant':
+				if (participant.isFacilitator && room.participants[message.participantId] && message.participantId !== participantId) {
+					delete room.participants[message.participantId]
+					room.order = room.order.filter((id) => id !== message.participantId)
+					for (const currentWs of this.state.getWebSockets()) {
+						if (this.participantIdFor(currentWs) === message.participantId) currentWs.close(1000, KICKED_MESSAGE)
+					}
+					if (Object.keys(room.participants).length === 0) {
+						this.roomPromise = null
+						await this.state.storage.deleteAlarm()
+						await this.state.storage.deleteAll()
+						return
 					}
 				}
 				break

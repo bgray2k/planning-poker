@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react'
 import type { EmojiStyle, Theme } from 'emoji-picker-react'
-import { Crown, Eye, SmilePlus } from 'lucide-react'
+import { Crown, Eye, LogOut, SmilePlus } from 'lucide-react'
 import {
   REACTION_COUNTS,
   REACTION_EMOJIS,
@@ -29,6 +29,7 @@ interface PokerTableProps {
   readonly reactions: EmojiReaction[]
   readonly canMakeFacilitator: boolean
   readonly onMakeFacilitator: (participantId: string) => void
+  readonly onKickParticipant: (participantId: string) => void
   readonly onThrowEmoji: (targetId: string, emoji: string, count: ReactionCount) => void
   readonly controls: ReactNode
 }
@@ -77,6 +78,7 @@ interface SeatEmojiPickerProps {
   readonly isVisible: boolean
   readonly canMakeFacilitator: boolean
   readonly onMakeFacilitator: (participantId: string) => void
+  readonly onKickParticipant: (participantId: string) => void
   readonly onThrowEmoji: (targetId: string, emoji: string, count: ReactionCount) => void
   readonly onSelectReactionCount: (count: ReactionCount) => void
   readonly onExpand: () => void
@@ -93,6 +95,7 @@ interface PlayerSeatProps {
   readonly emojiPickerTargetId: string | null
   readonly canMakeFacilitator: boolean
   readonly onMakeFacilitator: (participantId: string) => void
+  readonly onKickParticipant: (participantId: string) => void
   readonly onOpenQuickPicker: (targetId: string) => void
   readonly onOpenExpandedPicker: (targetId: string) => void
   readonly onThrowEmoji: (targetId: string, emoji: string, count: ReactionCount) => void
@@ -162,6 +165,7 @@ function SeatEmojiPicker({
   isVisible,
   canMakeFacilitator,
   onMakeFacilitator,
+  onKickParticipant,
   onThrowEmoji,
   onSelectReactionCount,
   onExpand,
@@ -172,16 +176,27 @@ function SeatEmojiPicker({
         className={`seat__emoji-picker${isVisible ? ' seat__emoji-picker--visible' : ''}${isExpanded ? ' seat__emoji-picker--expanded' : ''}`}
         aria-label={`Send a reaction to ${participant.name}`}
       >
-        {isVisible && canMakeFacilitator && !participant.isFacilitator && (
+        {isVisible && canMakeFacilitator && (
           <div className="seat__make-host-row">
+            {!participant.isFacilitator && (
+              <button
+                type="button"
+                className="seat__make-host"
+                aria-label={`Make ${participant.name} host`}
+                title={`Make ${participant.name} host`}
+                onClick={() => onMakeFacilitator(participant.id)}
+              >
+                <Crown aria-hidden="true" size={15} />
+              </button>
+            )}
             <button
               type="button"
-              className="seat__make-host"
-              aria-label={`Make ${participant.name} host`}
-              title={`Make ${participant.name} host`}
-              onClick={() => onMakeFacilitator(participant.id)}
+              className="seat__kick-player"
+              aria-label={`Kick ${participant.name}`}
+              title={`Kick ${participant.name}`}
+              onClick={() => onKickParticipant(participant.id)}
             >
-              <Crown aria-hidden="true" size={15} />
+              <LogOut aria-hidden="true" size={15} />
             </button>
           </div>
         )}
@@ -241,6 +256,7 @@ function PlayerSeat({
   emojiPickerTargetId,
   canMakeFacilitator,
   onMakeFacilitator,
+  onKickParticipant,
   onOpenQuickPicker,
   onOpenExpandedPicker,
   onThrowEmoji,
@@ -293,6 +309,7 @@ function PlayerSeat({
           isVisible={isQuickPickerVisible}
           canMakeFacilitator={canMakeFacilitator}
           onMakeFacilitator={onMakeFacilitator}
+          onKickParticipant={onKickParticipant}
           onThrowEmoji={onThrowEmoji}
           onSelectReactionCount={onSelectReactionCount}
           onExpand={() => onOpenExpandedPicker(participant.id)}
@@ -309,6 +326,7 @@ export function PokerTable({
   reactions,
   canMakeFacilitator,
   onMakeFacilitator,
+  onKickParticipant,
   onThrowEmoji,
   controls,
 }: PokerTableProps) {
@@ -423,6 +441,7 @@ export function PokerTable({
           emojiPickerTargetId={emojiPickerTargetId}
           canMakeFacilitator={canMakeFacilitator}
           onMakeFacilitator={onMakeFacilitator}
+          onKickParticipant={onKickParticipant}
           onOpenQuickPicker={setQuickPickerTargetId}
           onOpenExpandedPicker={setEmojiPickerTargetId}
           onThrowEmoji={onThrowEmoji}

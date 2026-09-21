@@ -24,6 +24,11 @@ export function RoomPage() {
   )
   const [nameInput, setNameInput] = useState('')
   const [showEndSessionDialog, setShowEndSessionDialog] = useState(false)
+  const [participantConfirmation, setParticipantConfirmation] = useState<{
+    id: string
+    name: string
+    action: 'host' | 'kick'
+  } | null>(null)
 
   const {
     state,
@@ -38,6 +43,7 @@ export function RoomPage() {
     reset,
     endSession,
     makeFacilitator,
+    kickParticipant,
     throwEmoji,
   } =
     useRoomConnection(roomId, name, isSpectator)
@@ -99,6 +105,23 @@ export function RoomPage() {
     endSession()
   }
 
+  function confirmKickParticipant(participantId: string) {
+    const participant = state?.participants.find(({ id }) => id === participantId)
+    if (participant) setParticipantConfirmation({ id: participant.id, name: participant.name, action: 'kick' })
+  }
+
+  function confirmMakeFacilitator(participantId: string) {
+    const participant = state?.participants.find(({ id }) => id === participantId)
+    if (participant) setParticipantConfirmation({ id: participant.id, name: participant.name, action: 'host' })
+  }
+
+  function confirmParticipantAction() {
+    if (!participantConfirmation) return
+    if (participantConfirmation.action === 'host') makeFacilitator(participantConfirmation.id)
+    else kickParticipant(participantConfirmation.id)
+    setParticipantConfirmation(null)
+  }
+
   return (
     <section className="room">
       {showEndSessionDialog && (
@@ -121,6 +144,37 @@ export function RoomPage() {
               </button>
               <button type="button" className="end-session-dialog__confirm" onClick={endRoomSession}>
                 End session
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {participantConfirmation && (
+        <div className="dialog-backdrop" role="presentation">
+          <div
+            className="end-session-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="participant-action-title"
+            aria-describedby="participant-action-description"
+          >
+            <div className="end-session-dialog__accent" aria-hidden="true" />
+            <h2 id="participant-action-title">
+              {participantConfirmation.action === 'host'
+                ? `Are you sure you want to make ${participantConfirmation.name} host?`
+                : `Are you sure you want to kick ${participantConfirmation.name}?`}
+            </h2>
+            <p id="participant-action-description">
+              {participantConfirmation.action === 'host'
+                ? 'You will no longer be the host.'
+                : 'They will be disconnected from this session.'}
+            </p>
+            <div className="end-session-dialog__actions">
+              <button type="button" onClick={() => setParticipantConfirmation(null)}>
+                Cancel
+              </button>
+              <button type="button" className="end-session-dialog__confirm" onClick={confirmParticipantAction}>
+                {participantConfirmation.action === 'host' ? 'Make host' : 'Kick player'}
               </button>
             </div>
           </div>
@@ -181,7 +235,8 @@ export function RoomPage() {
         revealed={state.revealed}
         reactions={reactions}
         canMakeFacilitator={state.you.isFacilitator}
-        onMakeFacilitator={makeFacilitator}
+        onMakeFacilitator={confirmMakeFacilitator}
+        onKickParticipant={confirmKickParticipant}
         onThrowEmoji={throwEmoji}
         controls={
           <RevealControls

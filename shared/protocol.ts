@@ -16,6 +16,7 @@ export const AFK_TIMEOUT_MS = 60 * 60 * 1000
 export const AFK_CHECK_INTERVAL_MS = 5 * 60 * 1000
 export const AFK_TIMEOUT_MESSAGE = 'You were disconnected for inactivity.'
 export const END_SESSION_MESSAGE = 'This session has ended.'
+export const KICKED_MESSAGE = 'You were removed from this session.'
 
 export type VoteDeckType = keyof typeof VOTE_DECKS
 export type CardValue = (typeof VOTE_DECKS)[VoteDeckType][number]
@@ -47,6 +48,7 @@ export type ClientMessage =
   | { type: 'reveal' }
   | { type: 'reset' }
   | { type: 'makeFacilitator'; participantId: string }
+  | { type: 'kickParticipant'; participantId: string }
   | { type: 'claimFacilitator' }
   | { type: 'endSession' }
   | { type: 'throwEmoji'; targetId: string; emoji: string; count?: ReactionCount }

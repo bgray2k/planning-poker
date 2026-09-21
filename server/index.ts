@@ -9,6 +9,7 @@ import {
   AFK_TIMEOUT_MESSAGE,
   AFK_TIMEOUT_MS,
   END_SESSION_MESSAGE,
+  KICKED_MESSAGE,
   MAX_PARTICIPANTS,
   REACTION_COUNTS,
   VOTE_DECKS,
@@ -209,6 +210,17 @@ function handleMakeFacilitator(room: Room, participantId: string, targetId: stri
   broadcastState(room)
 }
 
+function handleKickParticipant(room: Room, participantId: string, targetId: string) {
+  const participant = room.participants.get(participantId)
+  const target = room.participants.get(targetId)
+  if (!participant?.isFacilitator || !target || target.id === participant.id) return
+  room.participants.delete(target.id)
+  room.order = room.order.filter((id) => id !== target.id)
+  target.ws.close(1000, KICKED_MESSAGE)
+  if (room.participants.size === 0) rooms.delete(room.id)
+  else broadcastState(room)
+}
+
 function handleClaimFacilitator(room: Room, participantId: string) {
   const participant = room.participants.get(participantId)
   if (!participant) return
@@ -340,6 +352,9 @@ wss.on('connection', (ws, req) => {
         break
       case 'makeFacilitator':
         handleMakeFacilitator(room, meta.participantId, message.participantId)
+        break
+      case 'kickParticipant':
+        handleKickParticipant(room, meta.participantId, message.participantId)
         break
       case 'claimFacilitator':
         handleClaimFacilitator(room, meta.participantId)

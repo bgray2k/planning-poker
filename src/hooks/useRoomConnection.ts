@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateA
 import {
   AFK_TIMEOUT_MESSAGE,
   END_SESSION_MESSAGE,
+  KICKED_MESSAGE,
   type CardValue,
   type ClientMessage,
   type RoomStateView,
@@ -110,6 +111,7 @@ export function useRoomConnection(roomId: string, name: string | null, isSpectat
         window.location.assign('/')
       }
       if (event.reason === END_SESSION_MESSAGE) window.location.assign('/')
+      if (event.reason === KICKED_MESSAGE) window.location.assign('/')
     })
 
     function send(message: ClientMessage) {
@@ -146,6 +148,10 @@ export function useRoomConnection(roomId: string, name: string | null, isSpectat
     (participantId: string) => sendMessage({ type: 'makeFacilitator', participantId }),
     [sendMessage],
   )
+  const kickParticipant = useCallback(
+    (participantId: string) => sendMessage({ type: 'kickParticipant', participantId }),
+    [sendMessage],
+  )
   const throwEmoji = useCallback(
     (targetId: string, emoji: string, count: ReactionCount = 1) => {
       const now = Date.now()
@@ -169,6 +175,7 @@ export function useRoomConnection(roomId: string, name: string | null, isSpectat
     reset,
     endSession,
     makeFacilitator,
+    kickParticipant,
     throwEmoji,
   }
 }
