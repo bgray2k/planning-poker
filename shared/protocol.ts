@@ -40,7 +40,7 @@ export interface RoomStateView {
 }
 
 export type ClientMessage =
-  | { type: 'join'; name: string; isSpectator: boolean }
+  | { type: 'join'; name: string; isSpectator: boolean; clientId: string }
   | { type: 'vote'; value: CardValue }
   | { type: 'setDeck'; deckType: VoteDeckType }
   | { type: 'setSpectator'; isSpectator: boolean }

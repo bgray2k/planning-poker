@@ -15,6 +15,7 @@ import {
 
 interface StoredParticipant {
 	id: string
+	clientId?: string
 	name: string
 	vote: CardValue | null
 	isFacilitator: boolean
@@ -77,8 +78,11 @@ function parseClientMessage(value: unknown): ClientMessage | null {
 			return typeof value.name === 'string' &&
 				value.name.trim().length > 0 &&
 				value.name.length <= MAX_NAME_LENGTH &&
-				typeof value.isSpectator === 'boolean'
-				? { type: 'join', name: value.name, isSpectator: value.isSpectator }
+				typeof value.isSpectator === 'boolean' &&
+				typeof value.clientId === 'string' &&
+				value.clientId.length > 0 &&
+				value.clientId.length <= 128
+				? { type: 'join', name: value.name, isSpectator: value.isSpectator, clientId: value.clientId }
 				: null
 		case 'vote':
 			return isCardValue(value.value) ? { type: 'vote', value: value.value } : null
@@ -199,6 +203,20 @@ export class Room {
 		}
 
 		const room = await this.getRoom()
+		const existingParticipant = Object.values(room.participants).find(
+			(participant) => participant.clientId === message.clientId ||
+			(!participant.clientId && participant.name === message.name.trim()),
+		)
+		const shouldBeFacilitator = existingParticipant?.isFacilitator ?? Object.keys(room.participants).length === 0
+		if (existingParticipant) {
+			for (const currentWs of this.state.getWebSockets()) {
+				if (this.participantIdFor(currentWs) === existingParticipant.id && currentWs !== ws) {
+					currentWs.close(1000, 'Reconnected')
+				}
+			}
+			delete room.participants[existingParticipant.id]
+			room.order = room.order.filter((id) => id !== existingParticipant.id)
+		}
 		if (Object.keys(room.participants).length >= MAX_PARTICIPANTS) {
 			this.sendError(ws, `Room is full (max ${MAX_PARTICIPANTS} players)`)
 			ws.close(1008, 'Room is full')
@@ -208,9 +226,10 @@ export class Room {
 		const participantId = crypto.randomUUID().replaceAll('-', '').slice(0, 8)
 		room.participants[participantId] = {
 			id: participantId,
+			clientId: message.clientId,
 			name: message.name.trim(),
 			vote: null,
-			isFacilitator: Object.keys(room.participants).length === 0,
+			isFacilitator: shouldBeFacilitator,
 			isSpectator: message.isSpectator,
 		}
 		room.order.push(participantId)

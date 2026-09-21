@@ -22,6 +22,7 @@ import {
 
 interface Participant {
   id: string
+  clientId: string
   name: string
   vote: CardValue | null
   isFacilitator: boolean
@@ -104,8 +105,16 @@ function promoteNextFacilitator(room: Room) {
   }
 }
 
-function handleJoin(ws: WebSocket, roomId: string, name: string, isSpectator: boolean) {
+function handleJoin(ws: WebSocket, roomId: string, name: string, isSpectator: boolean, clientId: string) {
   const room = getOrCreateRoom(roomId)
+
+  const existingParticipant = [...room.participants.values()].find((participant) => participant.clientId === clientId)
+  const shouldBeFacilitator = existingParticipant?.isFacilitator ?? room.participants.size === 0
+  if (existingParticipant) {
+    existingParticipant.ws.close(1000, 'Reconnected')
+    room.participants.delete(existingParticipant.id)
+    room.order = room.order.filter((id) => id !== existingParticipant.id)
+  }
 
   if (room.participants.size >= MAX_PARTICIPANTS) {
     send(ws, { type: 'error', message: `Room is full (max ${MAX_PARTICIPANTS} players)` })
@@ -114,13 +123,12 @@ function handleJoin(ws: WebSocket, roomId: string, name: string, isSpectator: bo
   }
 
   const participantId = nanoid(8)
-  const isFacilitator = room.participants.size === 0
-
   room.participants.set(participantId, {
     id: participantId,
+    clientId,
     name,
     vote: null,
-    isFacilitator,
+    isFacilitator: shouldBeFacilitator,
     isSpectator,
     ws,
     lastActivityAt: Date.now(),
@@ -298,7 +306,7 @@ wss.on('connection', (ws, req) => {
     }
 
     if (message.type === 'join') {
-      handleJoin(ws, roomId, message.name, message.isSpectator)
+      handleJoin(ws, roomId, message.name, message.isSpectator, message.clientId)
       return
     }
 

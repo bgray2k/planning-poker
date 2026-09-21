@@ -20,6 +20,16 @@ const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8787'
 const ALLOWED_ROOM_IDS = new Set(['NOVA', 'HORIZON'])
 const ROOM_NOT_FOUND_MESSAGE = 'Room does not exist'
 
+function getClientId(roomId: string) {
+  const storageKey = `planning-poker-client:${roomId}`
+  const existingClientId = window.localStorage.getItem(storageKey)
+  if (existingClientId) return existingClientId
+
+  const clientId = crypto.randomUUID()
+  window.localStorage.setItem(storageKey, clientId)
+  return clientId
+}
+
 export interface EmojiReaction {
   id: string
   targetId: string
@@ -58,12 +68,13 @@ export function useRoomConnection(roomId: string, name: string | null, isSpectat
     }
 
     const ws = new WebSocket(`${WS_URL}/?room=${encodeURIComponent(roomId)}`)
+    const clientId = getClientId(roomId.trim().toUpperCase())
     wsRef.current = ws
 
     ws.addEventListener('open', () => {
       setConnected(true)
       setError(null)
-      send({ type: 'join', name, isSpectator })
+      send({ type: 'join', name, isSpectator, clientId })
     })
 
     ws.addEventListener('message', (event) => {
