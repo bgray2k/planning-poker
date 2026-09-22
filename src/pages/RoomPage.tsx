@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Eye, LogIn, SquareArrowRightExit, UserRound } from 'lucide-react'
+import { Eye, LogIn, SquareArrowRightExit, UserRound, UsersRound } from 'lucide-react'
 import { useParams } from 'react-router-dom'
 import { PokerTable } from '../components/PokerTable.tsx'
 import { RevealControls } from '../components/RevealControls.tsx'
@@ -188,6 +188,10 @@ export function RoomPage() {
       <header className="room__header">
         <div className="room__title">
           <h1>Room {state.roomId}</h1>
+          <span className="room-count" aria-label={`${state.participants.length} people in the room`}>
+            <UsersRound aria-hidden="true" size={15} />
+            <span>{state.participants.length}</span>
+          </span>
           <ShareLink roomId={state.roomId} />
           <button
             type="button"

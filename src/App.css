@@ -440,6 +440,19 @@
   font-weight: 600;
 }
 
+.room-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 1.75rem;
+  padding: 0 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--code-bg);
+  color: var(--text-h);
+  font: 600 0.75rem/1 var(--mono);
+}
+
 .share-link {
   display: flex;
   align-items: center;
