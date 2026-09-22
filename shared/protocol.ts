@@ -4,7 +4,7 @@
 
 export const VOTE_DECKS = {
   storyPoints: ['1', '2', '3', '5', '8', '?'],
-  timebox: ['1', '1.5', '2', '2.5', '3', '?'],
+  timebox: ['0.5','1', '1.5', '2', '2.5', '3', '?'],
   tShirt: ['XS', 'S', 'M', 'L', 'XL', '?'],
   confidence: ['1', '2', '3', '4', '5', '?'],
 } as const
