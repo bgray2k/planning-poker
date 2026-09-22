@@ -7,6 +7,7 @@ import {
   type ClientMessage,
   type RoomStateView,
   type ReactionCount,
+  type ReactionSpeed,
   type ServerMessage,
   type VoteDeckType,
 } from '../../shared/protocol.ts'
@@ -38,6 +39,7 @@ export interface EmojiReaction {
   from: 'left' | 'right'
   startY: number
   impactY?: number
+  speed?: ReactionSpeed
 }
 
 function removeReaction(
@@ -153,11 +155,11 @@ export function useRoomConnection(roomId: string, name: string | null, isSpectat
     [sendMessage],
   )
   const throwEmoji = useCallback(
-    (targetId: string, emoji: string, count: ReactionCount = 1) => {
+    (targetId: string, emoji: string, count: ReactionCount = 1, speed: ReactionSpeed = 1) => {
       const now = Date.now()
       if (now - lastReactionAtRef.current < 300) return
       lastReactionAtRef.current = now
-      sendMessage({ type: 'throwEmoji', targetId, emoji, count })
+      sendMessage({ type: 'throwEmoji', targetId, emoji, count, speed })
     },
     [sendMessage],
   )

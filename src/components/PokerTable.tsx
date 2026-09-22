@@ -9,13 +9,14 @@ import {
   type ReactNode,
 } from 'react'
 import type { EmojiStyle, Theme } from 'emoji-picker-react'
-import { Crown, Eye, LogOut, SmilePlus } from 'lucide-react'
+import { Crown, Eye, FastForward, LogOut, Play, SmilePlus } from 'lucide-react'
 import {
   REACTION_COUNTS,
   REACTION_EMOJIS,
   type CardValue,
   type ParticipantView,
   type ReactionCount,
+  type ReactionSpeed,
 } from '../../shared/protocol.ts'
 import type { EmojiReaction } from '../hooks/useRoomConnection.ts'
 
@@ -30,7 +31,7 @@ interface PokerTableProps {
   readonly canMakeFacilitator: boolean
   readonly onMakeFacilitator: (participantId: string) => void
   readonly onKickParticipant: (participantId: string) => void
-  readonly onThrowEmoji: (targetId: string, emoji: string, count: ReactionCount) => void
+  readonly onThrowEmoji: (targetId: string, emoji: string, count: ReactionCount, speed: ReactionSpeed) => void
   readonly controls: ReactNode
 }
 
@@ -53,6 +54,7 @@ function reactionStyle(reaction: EmojiReaction): CSSProperties {
     '--reaction-spin-end': `${(seed % 360) + 180}deg`,
     '--reaction-start-y': `${reaction.startY}vh`,
     '--reaction-impact-y': `${reaction.impactY ?? 50}%`,
+    '--reaction-duration': `${4.2 / (reaction.speed ?? 1)}s`,
   } as CSSProperties
 }
 
@@ -74,19 +76,22 @@ interface SeatPosition {
 interface SeatEmojiPickerProps {
   readonly participant: ParticipantView
   readonly reactionCount: ReactionCount
+  readonly reactionSpeed: ReactionSpeed
   readonly isExpanded: boolean
   readonly isVisible: boolean
   readonly canMakeFacilitator: boolean
   readonly onMakeFacilitator: (participantId: string) => void
   readonly onKickParticipant: (participantId: string) => void
-  readonly onThrowEmoji: (targetId: string, emoji: string, count: ReactionCount) => void
+  readonly onThrowEmoji: (targetId: string, emoji: string, count: ReactionCount, speed: ReactionSpeed) => void
   readonly onSelectReactionCount: (count: ReactionCount) => void
+  readonly onSelectReactionSpeed: (speed: ReactionSpeed) => void
   readonly onExpand: () => void
 }
 
 interface PlayerSeatProps {
   readonly participant: ParticipantView
   readonly reactionCount: ReactionCount
+  readonly reactionSpeed: ReactionSpeed
   readonly position: SeatPosition
   readonly revealed: boolean
   readonly majorityVote: CardValue | null
@@ -98,8 +103,9 @@ interface PlayerSeatProps {
   readonly onKickParticipant: (participantId: string) => void
   readonly onOpenQuickPicker: (targetId: string) => void
   readonly onOpenExpandedPicker: (targetId: string) => void
-  readonly onThrowEmoji: (targetId: string, emoji: string, count: ReactionCount) => void
+  readonly onThrowEmoji: (targetId: string, emoji: string, count: ReactionCount, speed: ReactionSpeed) => void
   readonly onSelectReactionCount: (count: ReactionCount) => void
+  readonly onSelectReactionSpeed: (speed: ReactionSpeed) => void
 }
 
 function renderSeatCardContent(participant: ParticipantView, revealed: boolean): ReactNode {
@@ -158,9 +164,41 @@ function ReactionCountControls({
   )
 }
 
+function ReactionSpeedControls({
+  selectedSpeed,
+  onSelect,
+}: {
+  readonly selectedSpeed: ReactionSpeed
+  readonly onSelect: (speed: ReactionSpeed) => void
+}) {
+  return (
+    <div className="seat__reaction-speeds" role="group" aria-label="Emoji speed">
+      <button
+        type="button"
+        className="seat__reaction-speed"
+        aria-label="Normal emoji speed"
+        aria-pressed={selectedSpeed === 1}
+        onClick={() => onSelect(1)}
+      >
+        <Play aria-hidden="true" size={14} />
+      </button>
+      <button
+        type="button"
+        className="seat__reaction-speed"
+        aria-label="Double emoji speed"
+        aria-pressed={selectedSpeed === 2}
+        onClick={() => onSelect(2)}
+      >
+        <FastForward aria-hidden="true" size={14} />
+      </button>
+    </div>
+  )
+}
+
 function SeatEmojiPicker({
   participant,
   reactionCount,
+  reactionSpeed,
   isExpanded,
   isVisible,
   canMakeFacilitator,
@@ -168,6 +206,7 @@ function SeatEmojiPicker({
   onKickParticipant,
   onThrowEmoji,
   onSelectReactionCount,
+  onSelectReactionSpeed,
   onExpand,
 }: SeatEmojiPickerProps) {
   return (
@@ -204,7 +243,7 @@ function SeatEmojiPicker({
           <Suspense fallback={null}>
             <EmojiPicker
               onEmojiClick={(emojiData) => {
-                onThrowEmoji(participant.id, emojiData.emoji, reactionCount)
+                onThrowEmoji(participant.id, emojiData.emoji, reactionCount, reactionSpeed)
               }}
               theme={'dark' as Theme}
               width={260}
@@ -212,6 +251,7 @@ function SeatEmojiPicker({
               previewConfig={{ showPreview: false }}
             />
             <ReactionCountControls selectedCount={reactionCount} onSelect={onSelectReactionCount} />
+            <ReactionSpeedControls selectedSpeed={reactionSpeed} onSelect={onSelectReactionSpeed} />
           </Suspense>
         ) : (
           <>
@@ -221,7 +261,7 @@ function SeatEmojiPicker({
                 type="button"
                 className="seat__emoji-button"
                 aria-label={`Send ${emoji} to ${participant.name}`}
-                onClick={() => onThrowEmoji(participant.id, emoji, reactionCount)}
+                onClick={() => onThrowEmoji(participant.id, emoji, reactionCount, reactionSpeed)}
               >
                 <Suspense fallback={emoji}>
                   <Emoji unified={emojiToUnified(emoji)} emojiStyle={APPLE_EMOJI_STYLE} size={22} />
@@ -238,6 +278,7 @@ function SeatEmojiPicker({
               <SmilePlus aria-hidden="true" size={17} />
             </button>
             <ReactionCountControls selectedCount={reactionCount} onSelect={onSelectReactionCount} />
+            <ReactionSpeedControls selectedSpeed={reactionSpeed} onSelect={onSelectReactionSpeed} />
           </>
         )}
       </div>
@@ -248,6 +289,7 @@ function SeatEmojiPicker({
 function PlayerSeat({
   participant,
   reactionCount,
+  reactionSpeed,
   position,
   revealed,
   majorityVote,
@@ -261,6 +303,7 @@ function PlayerSeat({
   onOpenExpandedPicker,
   onThrowEmoji,
   onSelectReactionCount,
+  onSelectReactionSpeed,
 }: PlayerSeatProps) {
   const playerReactions = reactions.filter((reaction) => reaction.targetId === participant.id)
   const isQuickPickerVisible = quickPickerTargetId === participant.id
@@ -305,6 +348,7 @@ function PlayerSeat({
         <SeatEmojiPicker
           participant={participant}
           reactionCount={reactionCount}
+          reactionSpeed={reactionSpeed}
           isExpanded={isExpandedPickerVisible}
           isVisible={isQuickPickerVisible}
           canMakeFacilitator={canMakeFacilitator}
@@ -312,6 +356,7 @@ function PlayerSeat({
           onKickParticipant={onKickParticipant}
           onThrowEmoji={onThrowEmoji}
           onSelectReactionCount={onSelectReactionCount}
+          onSelectReactionSpeed={onSelectReactionSpeed}
           onExpand={() => onOpenExpandedPicker(participant.id)}
         />
       </div>
@@ -331,6 +376,7 @@ export function PokerTable({
   controls,
 }: PokerTableProps) {
   const [reactionCount, setReactionCount] = useState<ReactionCount>(1)
+  const [reactionSpeed, setReactionSpeed] = useState<ReactionSpeed>(1)
   const [quickPickerTargetId, setQuickPickerTargetId] = useState<string | null>(null)
   const [emojiPickerTargetId, setEmojiPickerTargetId] = useState<string | null>(null)
 
@@ -433,6 +479,7 @@ export function PokerTable({
           key={participant.id}
           participant={participant}
           reactionCount={reactionCount}
+          reactionSpeed={reactionSpeed}
           position={seatPositions[index]}
           revealed={revealed}
           majorityVote={majorityVote}
@@ -446,6 +493,7 @@ export function PokerTable({
           onOpenExpandedPicker={setEmojiPickerTargetId}
           onThrowEmoji={onThrowEmoji}
           onSelectReactionCount={setReactionCount}
+          onSelectReactionSpeed={setReactionSpeed}
         />
       ))}
     </div>

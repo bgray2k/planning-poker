@@ -774,6 +774,15 @@
   grid-column: 1 / -1;
 }
 
+.seat__reaction-speeds {
+  display: flex;
+  justify-content: center;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
 .seat__emoji-picker:not(.seat__emoji-picker--expanded) .seat__reaction-count {
   flex: 1 1 0;
   min-width: 0;
@@ -803,6 +812,32 @@
   outline-offset: 1px;
 }
 
+.seat__reaction-speed {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 0.2rem 0.1rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text-h);
+  cursor: pointer;
+}
+
+.seat__reaction-speed[aria-pressed='true'],
+.seat__reaction-speed:hover,
+.seat__reaction-speed:focus-visible {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.seat__reaction-speed:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .seat--top .seat__picker-stack {
   top: calc(100% + 0.4rem);
   bottom: auto;
@@ -816,7 +851,7 @@
   pointer-events: none;
   font-size: 1.35rem;
   line-height: 1;
-  animation: emoji-reaction-left 4.2s linear forwards;
+  animation: emoji-reaction-left var(--reaction-duration, 4.2s) linear forwards;
 }
 
 .seat__reaction img {

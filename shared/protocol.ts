@@ -12,6 +12,7 @@ export const VOTE_DECKS = {
 export const MAX_PARTICIPANTS = 20
 export const REACTION_EMOJIS = ['🧻', '✏️', '🚩', '✈️', '🚌'] as const
 export const REACTION_COUNTS = [1, 2, 3] as const
+export const REACTION_SPEEDS = [1, 2] as const
 export const AFK_TIMEOUT_MS = 60 * 60 * 1000
 export const AFK_CHECK_INTERVAL_MS = 5 * 60 * 1000
 export const AFK_TIMEOUT_MESSAGE = 'You were disconnected for inactivity.'
@@ -21,6 +22,7 @@ export const KICKED_MESSAGE = 'You were removed from this session.'
 export type VoteDeckType = keyof typeof VOTE_DECKS
 export type CardValue = (typeof VOTE_DECKS)[VoteDeckType][number]
 export type ReactionCount = (typeof REACTION_COUNTS)[number]
+export type ReactionSpeed = (typeof REACTION_SPEEDS)[number]
 
 export interface ParticipantView {
   id: string
@@ -51,7 +53,7 @@ export type ClientMessage =
   | { type: 'kickParticipant'; participantId: string }
   | { type: 'claimFacilitator' }
   | { type: 'endSession' }
-  | { type: 'throwEmoji'; targetId: string; emoji: string; count?: ReactionCount }
+  | { type: 'throwEmoji'; targetId: string; emoji: string; count?: ReactionCount; speed?: ReactionSpeed }
 
 export type ServerMessage =
   | { type: 'state'; state: RoomStateView }
@@ -65,4 +67,5 @@ export type ServerMessage =
       from: 'left' | 'right'
       startY: number
       impactY?: number
+      speed: ReactionSpeed
     }

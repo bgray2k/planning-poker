@@ -12,10 +12,12 @@ import {
   KICKED_MESSAGE,
   MAX_PARTICIPANTS,
   REACTION_COUNTS,
+  REACTION_SPEEDS,
   VOTE_DECKS,
   type CardValue,
   type ClientMessage,
   type ParticipantView,
+  type ReactionSpeed,
   type RoomStateView,
   type ServerMessage,
   type VoteDeckType,
@@ -244,6 +246,7 @@ function handleThrowEmoji(
   targetId: string,
   emoji: string,
   count: number | undefined,
+  speed: ReactionSpeed | undefined,
 ) {
   const participant = room.participants.get(participantId)
   if (
@@ -252,7 +255,8 @@ function handleThrowEmoji(
     typeof emoji !== 'string' ||
     emoji.length === 0 ||
     emoji.length > 32 ||
-    !REACTION_COUNTS.includes((count ?? 1) as (typeof REACTION_COUNTS)[number])
+    !REACTION_COUNTS.includes((count ?? 1) as (typeof REACTION_COUNTS)[number]) ||
+    !REACTION_SPEEDS.includes((speed ?? 1) as (typeof REACTION_SPEEDS)[number])
   ) {
     return
   }
@@ -271,6 +275,7 @@ function handleThrowEmoji(
       from: (id.codePointAt(0) ?? 0) % 2 === 0 ? 'left' : 'right',
       startY: randomInt(0, 101),
       impactY: randomInt(15, 86),
+      speed: speed ?? 1,
     }
     for (const currentParticipant of room.participants.values()) send(currentParticipant.ws, message)
   }
@@ -363,7 +368,7 @@ wss.on('connection', (ws, req) => {
         handleEndSession(room, meta.participantId)
         break
       case 'throwEmoji':
-        handleThrowEmoji(room, meta.participantId, message.targetId, message.emoji, message.count)
+        handleThrowEmoji(room, meta.participantId, message.targetId, message.emoji, message.count, message.speed)
         break
     }
   })

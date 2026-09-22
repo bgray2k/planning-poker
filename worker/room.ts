@@ -6,6 +6,7 @@ import {
 	KICKED_MESSAGE,
 	MAX_PARTICIPANTS,
 	REACTION_COUNTS,
+	REACTION_SPEEDS,
 	VOTE_DECKS,
 	type CardValue,
 	type ClientMessage,
@@ -110,8 +111,9 @@ function parseClientMessage(value: unknown): ClientMessage | null {
 		case 'throwEmoji':
 			return typeof value.targetId === 'string' &&
 				typeof value.emoji === 'string' &&
-				(value.count === undefined || REACTION_COUNTS.includes(value.count as (typeof REACTION_COUNTS)[number]))
-				? { type: 'throwEmoji', targetId: value.targetId, emoji: value.emoji, count: value.count as (typeof REACTION_COUNTS)[number] | undefined }
+				(value.count === undefined || REACTION_COUNTS.includes(value.count as (typeof REACTION_COUNTS)[number])) &&
+				(value.speed === undefined || REACTION_SPEEDS.includes(value.speed as (typeof REACTION_SPEEDS)[number]))
+				? { type: 'throwEmoji', targetId: value.targetId, emoji: value.emoji, count: value.count as (typeof REACTION_COUNTS)[number] | undefined, speed: value.speed as (typeof REACTION_SPEEDS)[number] | undefined }
 				: null
 		default:
 			return null
@@ -350,11 +352,13 @@ export class Room {
 				break
 			case 'throwEmoji':
 				const reactionCount = message.count ?? 1
+				const reactionSpeed = message.speed ?? 1
 				if (
 					room.participants[message.targetId] &&
 					message.emoji.length > 0 &&
 					message.emoji.length <= 32 &&
 					REACTION_COUNTS.includes(reactionCount) &&
+					REACTION_SPEEDS.includes(reactionSpeed) &&
 					Date.now() - this.connectionAttachment(ws).lastReactionAt >= REACTION_COOLDOWN_MS
 				) {
 					const attachment = this.connectionAttachment(ws)
@@ -369,6 +373,7 @@ export class Room {
 							from: crypto.getRandomValues(new Uint8Array(1))[0] % 2 === 0 ? 'left' : 'right',
 							startY: crypto.getRandomValues(new Uint8Array(1))[0] % 101,
 							impactY: crypto.getRandomValues(new Uint8Array(1))[0] % 71 + 15,
+							speed: reactionSpeed,
 						}
 						for (const currentWs of this.state.getWebSockets()) this.send(currentWs, reaction)
 					}
