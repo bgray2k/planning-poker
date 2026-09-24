@@ -187,15 +187,17 @@ export function RoomPage() {
       )}
       <header className="room__header">
         <div className="room__title">
-          <h1>Room {state.roomId}</h1>
           <span className="room-count" aria-label={`${state.participants.length} people in the room`}>
             <UsersRound aria-hidden="true" size={15} />
             <span>{state.participants.length}</span>
           </span>
+          <h1>
+            <span>Room</span> <strong>{state.roomId}</strong>
+          </h1>
           <ShareLink roomId={state.roomId} />
           <button
             type="button"
-            className="role-toggle"
+            className="role-toggle role-toggle--separated"
             onClick={() => toggleSpectator(state.you.isSpectator)}
             aria-label={state.you.isSpectator ? 'Play' : 'Spectate'}
             title={state.you.isSpectator ? 'Play' : 'Spectate'}

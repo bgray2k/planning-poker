@@ -1,7 +1,7 @@
-import { Route, Routes } from 'react-router-dom'
-import './App.css'
-import { HomePage } from './pages/HomePage.tsx'
-import { RoomPage } from './pages/RoomPage.tsx'
+import { Route, Routes } from "react-router-dom";
+import "./App.css";
+import { HomePage } from "./pages/HomePage.tsx";
+import { RoomPage } from "./pages/RoomPage.tsx";
 
 function App() {
   return (
@@ -9,7 +9,7 @@ function App() {
       <Route path="/" element={<HomePage />} />
       <Route path="/room/:roomId" element={<RoomPage />} />
     </Routes>
-  )
+  );
 }
 
-export default App
+export default App;

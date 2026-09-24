@@ -1,9 +1,9 @@
 interface RevealControlsProps {
-  readonly isFacilitator: boolean
-  readonly revealed: boolean
-  readonly hasVotes: boolean
-  readonly onReveal: () => void
-  readonly onReset: () => void
+  readonly isFacilitator: boolean;
+  readonly revealed: boolean;
+  readonly hasVotes: boolean;
+  readonly onReveal: () => void;
+  readonly onReset: () => void;
 }
 
 export function RevealControls({
@@ -13,7 +13,7 @@ export function RevealControls({
   onReveal,
   onReset,
 }: RevealControlsProps) {
-  if (!isFacilitator) return null
+  if (!isFacilitator) return null;
 
   return (
     <div className="reveal-controls">
@@ -27,5 +27,5 @@ export function RevealControls({
         </button>
       )}
     </div>
-  )
+  );
 }

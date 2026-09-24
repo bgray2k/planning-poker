@@ -1,18 +1,18 @@
-import { useState } from 'react'
-import { Link } from 'lucide-react'
+import { useState } from "react";
+import { Link } from "lucide-react";
 
 interface ShareLinkProps {
-  roomId: string
+  roomId: string;
 }
 
 export function ShareLink({ roomId }: ShareLinkProps) {
-  const [copied, setCopied] = useState(false)
-  const url = `${window.location.origin}/room/${roomId}`
+  const [copied, setCopied] = useState(false);
+  const url = `${window.location.origin}/room/${roomId}`;
 
   async function copy() {
-    await navigator.clipboard.writeText(url)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
   }
 
   return (
@@ -21,14 +21,14 @@ export function ShareLink({ roomId }: ShareLinkProps) {
         type="button"
         className="share-link__button"
         onClick={copy}
-        aria-label={copied ? 'Room link copied' : 'Copy room link'}
-        title={copied ? 'Room link copied' : 'Copy room link'}
+        aria-label={copied ? "Room link copied" : "Copy room link"}
+        title={copied ? "Room link copied" : "Copy room link"}
       >
         <Link aria-hidden="true" size={16} />
       </button>
       <span className="share-link__status" role="status">
-        {copied ? 'Room link copied' : ''}
+        {copied ? "Room link copied" : ""}
       </span>
     </div>
-  )
+  );
 }

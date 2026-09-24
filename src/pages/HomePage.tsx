@@ -1,33 +1,33 @@
-import { useEffect, useState } from 'react'
-import { Eye, Info, LogIn, Sparkles } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
-import { isRoomId } from '../../shared/protocol.ts'
+import { useEffect, useState } from "react";
+import { Eye, Info, LogIn, Sparkles } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { isRoomId } from "../../shared/protocol.ts";
 
-const ROOM_NOT_FOUND_MESSAGE = 'Room does not exist'
+const ROOM_NOT_FOUND_MESSAGE = "Room does not exist";
 
 export function HomePage() {
-  const navigate = useNavigate()
-  const [joinName, setJoinName] = useState('')
-  const [joinCode, setJoinCode] = useState('')
-  const [notification, setNotification] = useState<string | null>(null)
+  const navigate = useNavigate();
+  const [joinName, setJoinName] = useState("");
+  const [joinCode, setJoinCode] = useState("");
+  const [notification, setNotification] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!notification) return
-    const timeout = window.setTimeout(() => setNotification(null), 3000)
-    return () => window.clearTimeout(timeout)
-  }, [notification])
+    if (!notification) return;
+    const timeout = window.setTimeout(() => setNotification(null), 3000);
+    return () => window.clearTimeout(timeout);
+  }, [notification]);
 
   function joinRoom(isSpectator: boolean) {
-    if (!joinName.trim() || !joinCode.trim()) return
-    const roomId = joinCode.trim().toUpperCase()
+    if (!joinName.trim() || !joinCode.trim()) return;
+    const roomId = joinCode.trim().toUpperCase();
     if (!isRoomId(roomId)) {
-      setNotification(ROOM_NOT_FOUND_MESSAGE)
-      return
+      setNotification(ROOM_NOT_FOUND_MESSAGE);
+      return;
     }
-    setNotification(null)
-    sessionStorage.setItem(`pp:name:${roomId}`, joinName.trim())
-    sessionStorage.setItem(`pp:spectator:${roomId}`, String(isSpectator))
-    navigate(`/room/${roomId}`)
+    setNotification(null);
+    sessionStorage.setItem(`pp:name:${roomId}`, joinName.trim());
+    sessionStorage.setItem(`pp:spectator:${roomId}`, String(isSpectator));
+    navigate(`/room/${roomId}`);
   }
 
   return (
@@ -63,8 +63,13 @@ export function HomePage() {
             aria-describedby="room-code-tooltip"
           >
             <Info aria-hidden="true" size={16} />
-            <span id="room-code-tooltip" className="room-code-field__tooltip" role="tooltip">
-              Room codes are pre-defined. Please reach out to the developer for an approved room code.
+            <span
+              id="room-code-tooltip"
+              className="room-code-field__tooltip"
+              role="tooltip"
+            >
+              Room codes are pre-defined. Please reach out to the developer for
+              an approved room code.
             </span>
           </span>
           <input
@@ -86,5 +91,5 @@ export function HomePage() {
         </div>
       </div>
     </section>
-  )
+  );
 }
