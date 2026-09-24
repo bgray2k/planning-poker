@@ -56,10 +56,10 @@ export function HomePage() {
         />
         <div className="room-code-field">
           <label htmlFor="room-code">Room code</label>
-          <span
+          <button
+            type="button"
             className="room-code-field__tip"
-            tabIndex={0}
-            aria-label="Room codes are pre-defined. Please reach out to the developer for an approved room code."
+            aria-label="Use team name as room code. These are pre-approved."
             aria-describedby="room-code-tooltip"
           >
             <Info aria-hidden="true" size={16} />
@@ -71,7 +71,7 @@ export function HomePage() {
               Room codes are pre-defined. Please reach out to the developer for
               an approved room code.
             </span>
-          </span>
+          </button>
           <input
             id="room-code"
             placeholder="Room code"

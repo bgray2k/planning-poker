@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Eye, LogIn, SquareArrowRightExit, UserRound, UsersRound } from 'lucide-react'
 import { useParams } from 'react-router-dom'
 import { PokerTable } from '../components/PokerTable.tsx'
@@ -29,6 +29,24 @@ export function RoomPage() {
     name: string
     action: 'host' | 'kick'
   } | null>(null)
+  const endSessionDialogRef = useRef<HTMLDialogElement>(null)
+  const participantActionDialogRef = useRef<HTMLDialogElement>(null)
+
+  useEffect(() => {
+    if (!showEndSessionDialog) return
+    const dialog = endSessionDialogRef.current
+    if (!dialog) return
+    dialog.showModal()
+    return () => dialog.close()
+  }, [showEndSessionDialog])
+
+  useEffect(() => {
+    if (!participantConfirmation) return
+    const dialog = participantActionDialogRef.current
+    if (!dialog) return
+    dialog.showModal()
+    return () => dialog.close()
+  }, [participantConfirmation])
 
   const {
     state,
@@ -125,14 +143,17 @@ export function RoomPage() {
   return (
     <section className="room">
       {showEndSessionDialog && (
-        <div className="dialog-backdrop" role="presentation">
-          <div
-            className="end-session-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="end-session-title"
-            aria-describedby="end-session-description"
-          >
+        <dialog
+          ref={endSessionDialogRef}
+          className="dialog-backdrop"
+          aria-labelledby="end-session-title"
+          aria-describedby="end-session-description"
+          onCancel={(event) => {
+            event.preventDefault()
+            setShowEndSessionDialog(false)
+          }}
+        >
+          <div className="end-session-dialog">
             <div className="end-session-dialog__accent" aria-hidden="true" />
             <h2 id="end-session-title">End this session?</h2>
             <p id="end-session-description">
@@ -147,17 +168,20 @@ export function RoomPage() {
               </button>
             </div>
           </div>
-        </div>
+        </dialog>
       )}
       {participantConfirmation && (
-        <div className="dialog-backdrop" role="presentation">
-          <div
-            className="end-session-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="participant-action-title"
-            aria-describedby="participant-action-description"
-          >
+        <dialog
+          ref={participantActionDialogRef}
+          className="dialog-backdrop"
+          aria-labelledby="participant-action-title"
+          aria-describedby="participant-action-description"
+          onCancel={(event) => {
+            event.preventDefault()
+            setParticipantConfirmation(null)
+          }}
+        >
+          <div className="end-session-dialog">
             <div className="end-session-dialog__accent" aria-hidden="true" />
             <h2 id="participant-action-title">
               {participantConfirmation.action === 'host'
@@ -178,7 +202,7 @@ export function RoomPage() {
               </button>
             </div>
           </div>
-        </div>
+        </dialog>
       )}
       {notification && (
         <div className="room__notification" role="status" aria-live="polite">

@@ -394,7 +394,7 @@ wss.on("connection", (ws, req) => {
     const lastSeenAt = Date.now();
     const meta = connections.get(ws);
     const room = meta && rooms.get(meta.roomId);
-    if (meta && room && room.participants.get(meta.participantId)) {
+    if (meta && room?.participants.get(meta.participantId)) {
       room.participants.get(meta.participantId)!.lastActivityAt = lastSeenAt;
     }
 
