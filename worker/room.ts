@@ -1,5 +1,4 @@
 import {
-  AFK_CHECK_INTERVAL_MS,
   AFK_TIMEOUT_MESSAGE,
   AFK_TIMEOUT_MS,
   END_SESSION_MESSAGE,
@@ -11,6 +10,8 @@ import {
   VOTE_DECKS,
   type CardValue,
   type ClientMessage,
+  type ReactionCount,
+  type ReactionSpeed,
   type RoomStateView,
   type ServerMessage,
   type VoteDeckType,
@@ -72,25 +73,57 @@ function isCardValue(value: unknown): value is CardValue {
   return typeof value === "string" && CARD_VALUES.has(value);
 }
 
+function isOptionalReactionCount(
+  value: unknown,
+): value is ReactionCount | undefined {
+  return value === undefined || REACTION_COUNTS.includes(value as ReactionCount);
+}
+
+function isOptionalReactionSpeed(
+  value: unknown,
+): value is ReactionSpeed | undefined {
+  return value === undefined || REACTION_SPEEDS.includes(value as ReactionSpeed);
+}
+
+function parseJoinMessage(value: Record<string, unknown>): ClientMessage | null {
+  const { name, isSpectator, clientId } = value;
+  if (
+    typeof name !== "string" ||
+    name.trim().length === 0 ||
+    name.length > MAX_NAME_LENGTH ||
+    typeof isSpectator !== "boolean" ||
+    typeof clientId !== "string" ||
+    clientId.length === 0 ||
+    clientId.length > 128
+  ) {
+    return null;
+  }
+
+  return { type: "join", name, isSpectator, clientId };
+}
+
+function parseThrowEmojiMessage(
+  value: Record<string, unknown>,
+): ClientMessage | null {
+  const { targetId, emoji, count, speed } = value;
+  if (
+    typeof targetId !== "string" ||
+    typeof emoji !== "string" ||
+    !isOptionalReactionCount(count) ||
+    !isOptionalReactionSpeed(speed)
+  ) {
+    return null;
+  }
+
+  return { type: "throwEmoji", targetId, emoji, count, speed };
+}
+
 function parseClientMessage(value: unknown): ClientMessage | null {
   if (!isRecord(value) || typeof value.type !== "string") return null;
 
   switch (value.type) {
     case "join":
-      return typeof value.name === "string" &&
-        value.name.trim().length > 0 &&
-        value.name.length <= MAX_NAME_LENGTH &&
-        typeof value.isSpectator === "boolean" &&
-        typeof value.clientId === "string" &&
-        value.clientId.length > 0 &&
-        value.clientId.length <= 128
-        ? {
-            type: "join",
-            name: value.name,
-            isSpectator: value.isSpectator,
-            clientId: value.clientId,
-          }
-        : null;
+      return parseJoinMessage(value);
     case "vote":
       return isCardValue(value.value)
         ? { type: "vote", value: value.value }
@@ -118,27 +151,16 @@ function parseClientMessage(value: unknown): ClientMessage | null {
     case "endSession":
       return { type: value.type };
     case "throwEmoji":
-      return typeof value.targetId === "string" &&
-        typeof value.emoji === "string" &&
-        (value.count === undefined ||
-          REACTION_COUNTS.includes(
-            value.count as (typeof REACTION_COUNTS)[number],
-          )) &&
-        (value.speed === undefined ||
-          REACTION_SPEEDS.includes(
-            value.speed as (typeof REACTION_SPEEDS)[number],
-          ))
-        ? {
-            type: "throwEmoji",
-            targetId: value.targetId,
-            emoji: value.emoji,
-            count: value.count as (typeof REACTION_COUNTS)[number] | undefined,
-            speed: value.speed as (typeof REACTION_SPEEDS)[number] | undefined,
-          }
-        : null;
+      return parseThrowEmojiMessage(value);
     default:
       return null;
   }
+}
+
+function getRawMessageBytes(message: string | ArrayBuffer): number {
+  if (typeof message !== "string") return message.byteLength;
+  if (message.length > MAX_MESSAGE_BYTES) return MAX_MESSAGE_BYTES + 1;
+  return new TextEncoder().encode(message).byteLength;
 }
 
 export class Room {
@@ -150,8 +172,8 @@ export class Room {
     _env: unknown,
   ) {}
 
-  private scheduleAfkCheck() {
-    void this.state.storage.setAlarm(Date.now() + AFK_CHECK_INTERVAL_MS);
+  private scheduleAfkCheck(timestamp: number) {
+    void this.state.storage.setAlarm(timestamp);
   }
 
   private async deleteAlarms() {
@@ -159,13 +181,11 @@ export class Room {
   }
 
   private async getRoom(): Promise<StoredRoom> {
-    if (!this.roomPromise) {
-      this.roomPromise = this.state.storage
-        .get<StoredRoom>(ROOM_STORAGE_KEY)
-        .then(
-          (room) => room ?? createRoom(this.roomId ?? this.state.id.toString()),
-        );
-    }
+    this.roomPromise ??= this.state.storage
+      .get<StoredRoom>(ROOM_STORAGE_KEY)
+      .then(
+        (room) => room ?? createRoom(this.roomId ?? this.state.id.toString()),
+      );
     return this.roomPromise;
   }
 
@@ -288,10 +308,244 @@ export class Room {
     attachment.participantId = participantId;
     attachment.lastActivityAt = Date.now();
     ws.serializeAttachment(attachment);
-    if (this.state.getWebSockets().length > 0) this.scheduleAfkCheck();
     await this.saveRoom(room);
     await this.broadcastState(room);
-    this.scheduleAfkCheck();
+  }
+
+  private clearVotes(room: StoredRoom) {
+    for (const participant of Object.values(room.participants)) {
+      participant.vote = null;
+    }
+  }
+
+  private applyVote(
+    room: StoredRoom,
+    participant: StoredParticipant,
+    value: CardValue,
+  ): boolean {
+    if (participant.isSpectator || room.revealed || participant.vote === value)
+      return false;
+    participant.vote = value;
+    return true;
+  }
+
+  private applyDeck(
+    room: StoredRoom,
+    participant: StoredParticipant,
+    deckType: VoteDeckType,
+  ): boolean {
+    if (!participant.isFacilitator || room.deckType === deckType) return false;
+    room.deckType = deckType;
+    room.revealed = false;
+    this.clearVotes(room);
+    return true;
+  }
+
+  private applySpectatorSetting(
+    participant: StoredParticipant,
+    isSpectator: boolean,
+  ): boolean {
+    if (participant.isSpectator === isSpectator) return false;
+    participant.isSpectator = isSpectator;
+    if (isSpectator) participant.vote = null;
+    return true;
+  }
+
+  private revealVotes(
+    room: StoredRoom,
+    participant: StoredParticipant,
+  ): boolean {
+    if (
+      !participant.isFacilitator ||
+      room.revealed ||
+      !Object.values(room.participants).some(
+        (currentParticipant) =>
+          !currentParticipant.isSpectator && currentParticipant.vote !== null,
+      )
+    ) {
+      return false;
+    }
+    room.revealed = true;
+    return true;
+  }
+
+  private resetVotes(
+    room: StoredRoom,
+    participant: StoredParticipant,
+  ): boolean {
+    const hasVotes = Object.values(room.participants).some(
+      (currentParticipant) => currentParticipant.vote !== null,
+    );
+    if (!participant.isFacilitator || (!room.revealed && !hasVotes)) return false;
+    room.revealed = false;
+    this.clearVotes(room);
+    return true;
+  }
+
+  private transferFacilitator(
+    room: StoredRoom,
+    participantId: string,
+    participant: StoredParticipant,
+    targetId: string,
+  ): boolean {
+    const target = room.participants[targetId];
+    if (!participant.isFacilitator || !target || targetId === participantId)
+      return false;
+
+    participant.isFacilitator = false;
+    target.isFacilitator = true;
+    for (const currentWs of this.state.getWebSockets()) {
+      this.send(currentWs, {
+        type: "hostTransferred",
+        actorName: participant.name,
+        targetName: target.name,
+      });
+    }
+    return true;
+  }
+
+  private async clearRoomStorage() {
+    this.roomPromise = null;
+    await this.deleteAlarms();
+    await this.state.storage.deleteAll();
+  }
+
+  private async kickParticipant(
+    room: StoredRoom,
+    participantId: string,
+    participant: StoredParticipant,
+    targetId: string,
+  ): Promise<boolean> {
+    if (
+      !participant.isFacilitator ||
+      !room.participants[targetId] ||
+      targetId === participantId
+    ) {
+      return false;
+    }
+
+    delete room.participants[targetId];
+    room.order = room.order.filter((id) => id !== targetId);
+    for (const currentWs of this.state.getWebSockets()) {
+      if (this.participantIdFor(currentWs) === targetId) {
+        currentWs.close(1000, KICKED_MESSAGE);
+      }
+    }
+    if (Object.keys(room.participants).length === 0) {
+      await this.clearRoomStorage();
+      return false;
+    }
+    return true;
+  }
+
+  private claimFacilitator(room: StoredRoom, participantId: string): boolean {
+    let hasChanges = false;
+    for (const participant of Object.values(room.participants)) {
+      const shouldBeFacilitator = participant.id === participantId;
+      if (participant.isFacilitator !== shouldBeFacilitator) {
+        participant.isFacilitator = shouldBeFacilitator;
+        hasChanges = true;
+      }
+    }
+    return hasChanges;
+  }
+
+  private async endSession(participant: StoredParticipant): Promise<void> {
+    if (!participant.isFacilitator) return;
+    for (const currentWs of this.state.getWebSockets()) {
+      currentWs.close(1000, END_SESSION_MESSAGE);
+    }
+    await this.clearRoomStorage();
+  }
+
+  private throwEmoji(
+    ws: WebSocket,
+    room: StoredRoom,
+    message: Extract<ClientMessage, { type: "throwEmoji" }>,
+  ) {
+    const reactionCount = message.count ?? 1;
+    const reactionSpeed = message.speed ?? 1;
+    const attachment = this.connectionAttachment(ws);
+    if (
+      !room.participants[message.targetId] ||
+      message.emoji.length === 0 ||
+      message.emoji.length > 32 ||
+      !REACTION_COUNTS.includes(reactionCount) ||
+      !REACTION_SPEEDS.includes(reactionSpeed) ||
+      Date.now() - attachment.lastReactionAt < REACTION_COOLDOWN_MS
+    ) {
+      return;
+    }
+
+    attachment.lastReactionAt = Date.now();
+    ws.serializeAttachment(attachment);
+    for (
+      let reactionIndex = 0;
+      reactionIndex < reactionCount;
+      reactionIndex += 1
+    ) {
+      const reaction: ServerMessage = {
+        type: "emojiThrown",
+        id: crypto.randomUUID(),
+        targetId: message.targetId,
+        emoji: message.emoji,
+        from:
+          crypto.getRandomValues(new Uint8Array(1))[0] % 2 === 0
+            ? "left"
+            : "right",
+        startY: crypto.getRandomValues(new Uint8Array(1))[0] % 101,
+        impactY: (crypto.getRandomValues(new Uint8Array(1))[0] % 71) + 15,
+        speed: reactionSpeed,
+      };
+      for (const currentWs of this.state.getWebSockets()) {
+        this.send(currentWs, reaction);
+      }
+    }
+  }
+
+  private async applyAction(
+    ws: WebSocket,
+    room: StoredRoom,
+    participantId: string,
+    participant: StoredParticipant,
+    message: Exclude<ClientMessage, { type: "join" }>,
+  ): Promise<boolean> {
+    switch (message.type) {
+      case "vote":
+        return this.applyVote(room, participant, message.value);
+      case "setDeck":
+        return this.applyDeck(room, participant, message.deckType);
+      case "setSpectator":
+        return this.applySpectatorSetting(participant, message.isSpectator);
+      case "reveal":
+        return this.revealVotes(room, participant);
+      case "reset":
+        return this.resetVotes(room, participant);
+      case "makeFacilitator":
+        return this.transferFacilitator(
+          room,
+          participantId,
+          participant,
+          message.participantId,
+        );
+      case "kickParticipant":
+        return this.kickParticipant(
+          room,
+          participantId,
+          participant,
+          message.participantId,
+        );
+      case "claimFacilitator":
+        return this.claimFacilitator(room, participantId);
+      case "endSession":
+        await this.endSession(participant);
+        return false;
+      case "throwEmoji":
+        this.throwEmoji(ws, room, message);
+        return false;
+      default:
+        return false;
+    }
   }
 
   private async handleAction(
@@ -315,141 +569,17 @@ export class Room {
       return;
     }
 
-    switch (message.type) {
-      case "vote":
-        if (!participant.isSpectator && !room.revealed)
-          participant.vote = message.value;
-        break;
-      case "setDeck":
-        if (participant.isFacilitator && room.deckType !== message.deckType) {
-          room.deckType = message.deckType;
-          room.revealed = false;
-          for (const currentParticipant of Object.values(room.participants)) {
-            currentParticipant.vote = null;
-          }
-        }
-        break;
-      case "setSpectator":
-        if (participant.isSpectator !== message.isSpectator) {
-          participant.isSpectator = message.isSpectator;
-          if (message.isSpectator) participant.vote = null;
-        }
-        break;
-      case "reveal":
-        if (
-          participant.isFacilitator &&
-          Object.values(room.participants)
-            .filter((currentParticipant) => !currentParticipant.isSpectator)
-            .some((currentParticipant) => currentParticipant.vote !== null)
-        ) {
-          room.revealed = true;
-        }
-        break;
-      case "reset":
-        if (participant.isFacilitator) {
-          room.revealed = false;
-          for (const currentParticipant of Object.values(room.participants)) {
-            currentParticipant.vote = null;
-          }
-        }
-        break;
-      case "makeFacilitator":
-        if (
-          participant.isFacilitator &&
-          room.participants[message.participantId] &&
-          message.participantId !== participantId
-        ) {
-          const target = room.participants[message.participantId];
-          participant.isFacilitator = false;
-          target.isFacilitator = true;
-          for (const currentWs of this.state.getWebSockets()) {
-            this.send(currentWs, {
-              type: "hostTransferred",
-              actorName: participant.name,
-              targetName: target.name,
-            });
-          }
-        }
-        break;
-      case "kickParticipant":
-        if (
-          participant.isFacilitator &&
-          room.participants[message.participantId] &&
-          message.participantId !== participantId
-        ) {
-          delete room.participants[message.participantId];
-          room.order = room.order.filter((id) => id !== message.participantId);
-          for (const currentWs of this.state.getWebSockets()) {
-            if (this.participantIdFor(currentWs) === message.participantId)
-              currentWs.close(1000, KICKED_MESSAGE);
-          }
-          if (Object.keys(room.participants).length === 0) {
-            this.roomPromise = null;
-            await this.state.storage.deleteAlarm();
-            await this.state.storage.deleteAll();
-            return;
-          }
-        }
-        break;
-      case "claimFacilitator":
-        for (const currentParticipant of Object.values(room.participants)) {
-          currentParticipant.isFacilitator =
-            currentParticipant.id === participantId;
-        }
-        break;
-      case "endSession":
-        if (participant.isFacilitator) {
-          for (const currentWs of this.state.getWebSockets()) {
-            currentWs.close(1000, END_SESSION_MESSAGE);
-          }
-          this.roomPromise = null;
-          await this.deleteAlarms();
-          await this.state.storage.deleteAll();
-          return;
-        }
-        break;
-      case "throwEmoji":
-        const reactionCount = message.count ?? 1;
-        const reactionSpeed = message.speed ?? 1;
-        if (
-          room.participants[message.targetId] &&
-          message.emoji.length > 0 &&
-          message.emoji.length <= 32 &&
-          REACTION_COUNTS.includes(reactionCount) &&
-          REACTION_SPEEDS.includes(reactionSpeed) &&
-          Date.now() - this.connectionAttachment(ws).lastReactionAt >=
-            REACTION_COOLDOWN_MS
-        ) {
-          const attachment = this.connectionAttachment(ws);
-          attachment.lastReactionAt = Date.now();
-          ws.serializeAttachment(attachment);
-          for (
-            let reactionIndex = 0;
-            reactionIndex < reactionCount;
-            reactionIndex += 1
-          ) {
-            const reaction: ServerMessage = {
-              type: "emojiThrown",
-              id: crypto.randomUUID(),
-              targetId: message.targetId,
-              emoji: message.emoji,
-              from:
-                crypto.getRandomValues(new Uint8Array(1))[0] % 2 === 0
-                  ? "left"
-                  : "right",
-              startY: crypto.getRandomValues(new Uint8Array(1))[0] % 101,
-              impactY: (crypto.getRandomValues(new Uint8Array(1))[0] % 71) + 15,
-              speed: reactionSpeed,
-            };
-            for (const currentWs of this.state.getWebSockets())
-              this.send(currentWs, reaction);
-          }
-        }
-        return;
+    const hasChanges = await this.applyAction(
+      ws,
+      room,
+      participantId,
+      participant,
+      message,
+    );
+    if (hasChanges) {
+      await this.saveRoom(room);
+      await this.broadcastState(room);
     }
-
-    await this.saveRoom(room);
-    await this.broadcastState(room);
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -469,15 +599,16 @@ export class Room {
     const client = pair[0];
     const server = pair[1];
     this.state.acceptWebSocket(server);
+    const lastActivityAt = Date.now();
     server.serializeAttachment({
       participantId: null,
-      messageWindowStart: Date.now(),
+      messageWindowStart: lastActivityAt,
       messageCount: 0,
       lastReactionAt: 0,
-      lastActivityAt: Date.now(),
+      lastActivityAt,
     } satisfies ConnectionAttachment);
 
-    this.scheduleAfkCheck();
+    this.scheduleAfkCheck(lastActivityAt + AFK_TIMEOUT_MS);
     return new Response(null, { status: 101, webSocket: client });
   }
 
@@ -486,12 +617,7 @@ export class Room {
     attachment.lastActivityAt = Date.now();
     ws.serializeAttachment(attachment);
 
-    const rawBytes =
-      typeof message === "string"
-        ? message.length > MAX_MESSAGE_BYTES
-          ? MAX_MESSAGE_BYTES + 1
-          : new TextEncoder().encode(message).byteLength
-        : message.byteLength;
+    const rawBytes = getRawMessageBytes(message);
     if (rawBytes > MAX_MESSAGE_BYTES) {
       this.sendError(ws, "Message is too large");
       ws.close(1009, "Message is too large");
@@ -535,12 +661,23 @@ export class Room {
   }
 
   async webSocketClose(ws: WebSocket) {
+    const activitySocket = this.state
+      .getWebSockets()
+      .find((currentWs) => currentWs !== ws);
+    if (activitySocket) {
+      const attachment = this.connectionAttachment(activitySocket);
+      attachment.lastActivityAt = Date.now();
+      activitySocket.serializeAttachment(attachment);
+    }
+
     const participantId = this.participantIdFor(ws);
     if (!participantId) return;
 
     const room = await this.getRoom();
-    const wasFacilitator =
-      room.participants[participantId]?.isFacilitator ?? false;
+    const participant = room.participants[participantId];
+    if (!participant) return;
+
+    const wasFacilitator = participant.isFacilitator;
     delete room.participants[participantId];
     room.order = room.order.filter((id) => id !== participantId);
 
@@ -557,27 +694,25 @@ export class Room {
   }
 
   async alarm() {
-    const room = await this.getRoom();
+    const webSockets = this.state.getWebSockets();
     const now = Date.now();
-    for (const ws of this.state.getWebSockets()) {
-      const participantId = this.participantIdFor(ws);
-      if (!participantId || !room.participants[participantId]) continue;
+    const lastRoomActivityAt = webSockets.reduce((latest, ws) => {
       const attachment = this.connectionAttachment(ws);
-      if (now - attachment.lastActivityAt >= AFK_TIMEOUT_MS) {
+      return Math.max(latest, attachment.lastActivityAt ?? 0);
+    }, 0);
+
+    if (webSockets.length === 0 || now - lastRoomActivityAt >= AFK_TIMEOUT_MS) {
+      for (const ws of webSockets) {
         this.send(ws, { type: "error", message: AFK_TIMEOUT_MESSAGE });
         ws.close(1000, AFK_TIMEOUT_MESSAGE);
       }
-    }
-    if (
-      this.state.getWebSockets().length > 0 ||
-      Object.keys(room.participants).length > 0
-    ) {
-      this.scheduleAfkCheck();
-    } else {
-      await this.state.storage.deleteAlarm();
       this.roomPromise = null;
+      await this.deleteAlarms();
       await this.state.storage.deleteAll();
+      return;
     }
+
+    this.scheduleAfkCheck(lastRoomActivityAt + AFK_TIMEOUT_MS);
   }
 
   webSocketError(ws: WebSocket) {

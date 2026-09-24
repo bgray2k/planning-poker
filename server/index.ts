@@ -32,7 +32,6 @@ interface Participant {
   isFacilitator: boolean;
   isSpectator: boolean;
   ws: WebSocket;
-  lastActivityAt: number;
   lastReactionAt: number;
 }
 
@@ -42,6 +41,7 @@ interface Room {
   deckType: VoteDeckType;
   order: string[];
   participants: Map<string, Participant>;
+  lastActivityAt: number;
 }
 
 const rooms = new Map<string, Room>();
@@ -60,6 +60,7 @@ function getOrCreateRoom(roomId: string): Room {
       deckType: "storyPoints",
       order: [],
       participants: new Map(),
+      lastActivityAt: Date.now(),
     };
     rooms.set(roomId, room);
   }
@@ -122,6 +123,7 @@ function handleJoin(
   clientId: string,
 ) {
   const room = getOrCreateRoom(roomId);
+  room.lastActivityAt = Date.now();
 
   const existingParticipant = [...room.participants.values()].find(
     (participant) => participant.clientId === clientId,
@@ -152,7 +154,6 @@ function handleJoin(
     isFacilitator: shouldBeFacilitator,
     isSpectator,
     ws,
-    lastActivityAt: Date.now(),
     lastReactionAt: Date.now(),
   });
   room.order.push(participantId);
@@ -161,15 +162,16 @@ function handleJoin(
   broadcastState(room);
 }
 
-function disconnectInactiveParticipants() {
+function closeInactiveRooms() {
   const now = Date.now();
 
   for (const room of rooms.values()) {
+    if (now - room.lastActivityAt < AFK_TIMEOUT_MS) continue;
+
+    rooms.delete(room.id);
     for (const participant of room.participants.values()) {
-      if (now - participant.lastActivityAt >= AFK_TIMEOUT_MS) {
-        send(participant.ws, { type: "error", message: AFK_TIMEOUT_MESSAGE });
-        participant.ws.close(1000, AFK_TIMEOUT_MESSAGE);
-      }
+      send(participant.ws, { type: "error", message: AFK_TIMEOUT_MESSAGE });
+      participant.ws.close(1000, AFK_TIMEOUT_MESSAGE);
     }
   }
 }
@@ -342,6 +344,7 @@ function handleClose(ws: WebSocket) {
   if (!meta) return;
   const room = rooms.get(meta.roomId);
   if (!room) return;
+  room.lastActivityAt = Date.now();
 
   const wasFacilitator = room.participants.get(
     meta.participantId,
@@ -372,6 +375,10 @@ wss.on("connection", (ws, req) => {
   }
 
   ws.on("message", (raw) => {
+    const meta = connections.get(ws);
+    const room = meta ? rooms.get(meta.roomId) : undefined;
+    if (room) room.lastActivityAt = Date.now();
+
     let message: ClientMessage;
     try {
       message = JSON.parse((raw as Buffer).toString("utf-8"));
@@ -389,13 +396,6 @@ wss.on("connection", (ws, req) => {
         message.clientId,
       );
       return;
-    }
-
-    const lastSeenAt = Date.now();
-    const meta = connections.get(ws);
-    const room = meta && rooms.get(meta.roomId);
-    if (meta && room?.participants.get(meta.participantId)) {
-      room.participants.get(meta.participantId)!.lastActivityAt = lastSeenAt;
     }
 
     if (!meta || !room) {
@@ -450,7 +450,7 @@ wss.on("connection", (ws, req) => {
   ws.on("close", () => handleClose(ws));
 });
 
-setInterval(disconnectInactiveParticipants, AFK_CHECK_INTERVAL_MS);
+setInterval(closeInactiveRooms, AFK_CHECK_INTERVAL_MS);
 
 const PORT = 8787;
 httpServer.listen(PORT, () => {

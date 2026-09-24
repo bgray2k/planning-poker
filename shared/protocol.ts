@@ -23,7 +23,8 @@ export const REACTION_COUNTS = [1, 2, 3] as const;
 export const REACTION_SPEEDS = [1, 2] as const;
 export const AFK_TIMEOUT_MS = 60 * 60 * 1000;
 export const AFK_CHECK_INTERVAL_MS = 5 * 60 * 1000;
-export const AFK_TIMEOUT_MESSAGE = "You were disconnected for inactivity.";
+export const AFK_TIMEOUT_MESSAGE =
+  "The room was closed after one hour of inactivity.";
 export const END_SESSION_MESSAGE = "This session has ended.";
 export const KICKED_MESSAGE = "You were removed from this session.";
 
