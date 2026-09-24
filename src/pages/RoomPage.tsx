@@ -262,6 +262,7 @@ export function RoomPage() {
 
       <PokerTable
         participants={state.participants}
+        currentParticipantId={state.you.id}
         revealed={state.revealed}
         reactions={reactions}
         canMakeFacilitator={state.you.isFacilitator}

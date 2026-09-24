@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import type { EmojiStyle, Theme } from "emoji-picker-react";
-import { Crown, Eye, FastForward, LogOut, Play, SmilePlus } from "lucide-react";
+import { Crown, Eye, FastForward, UserRoundX, Play, SmilePlus } from "lucide-react";
 import {
   REACTION_COUNTS,
   REACTION_EMOJIS,
@@ -30,6 +30,7 @@ const APPLE_EMOJI_STYLE = "apple" as EmojiStyle;
 
 interface PokerTableProps {
   readonly participants: ParticipantView[];
+  readonly currentParticipantId: string;
   readonly revealed: boolean;
   readonly reactions: EmojiReaction[];
   readonly canMakeFacilitator: boolean;
@@ -91,6 +92,7 @@ interface SeatPosition {
 
 interface SeatEmojiPickerProps {
   readonly participant: ParticipantView;
+  readonly isCurrentParticipant: boolean;
   readonly reactionCount: ReactionCount;
   readonly reactionSpeed: ReactionSpeed;
   readonly isExpanded: boolean;
@@ -111,6 +113,7 @@ interface SeatEmojiPickerProps {
 
 interface PlayerSeatProps {
   readonly participant: ParticipantView;
+  readonly currentParticipantId: string;
   readonly reactionCount: ReactionCount;
   readonly reactionSpeed: ReactionSpeed;
   readonly position: SeatPosition;
@@ -246,6 +249,7 @@ function ReactionSpeedControls({
 
 function SeatEmojiPicker({
   participant,
+  isCurrentParticipant,
   reactionCount,
   reactionSpeed,
   isExpanded,
@@ -266,7 +270,7 @@ function SeatEmojiPicker({
         className={`seat__emoji-picker${isVisible ? " seat__emoji-picker--visible" : ""}${isExpanded ? " seat__emoji-picker--expanded" : ""}`}
         aria-label={`Send a reaction to ${participant.name}`}
       >
-        {isVisible && canMakeFacilitator && (
+        {isVisible && canMakeFacilitator && !isCurrentParticipant && (
           <div className="seat__make-host-row">
             {!participant.isFacilitator && (
               <button
@@ -286,7 +290,7 @@ function SeatEmojiPicker({
               title={`Kick ${participant.name}`}
               onClick={() => onKickParticipant(participant.id)}
             >
-              <LogOut aria-hidden="true" size={15} />
+              <UserRoundX aria-hidden="true" size={15} />
             </button>
           </div>
         )}
@@ -367,6 +371,7 @@ function SeatEmojiPicker({
 
 function PlayerSeat({
   participant,
+  currentParticipantId,
   reactionCount,
   reactionSpeed,
   position,
@@ -384,6 +389,7 @@ function PlayerSeat({
   onSelectReactionCount,
   onSelectReactionSpeed,
 }: PlayerSeatProps) {
+  const isCurrentParticipant = participant.id === currentParticipantId;
   const playerReactions = reactions.filter(
     (reaction) => reaction.targetId === participant.id,
   );
@@ -437,6 +443,7 @@ function PlayerSeat({
         </button>
         <SeatEmojiPicker
           participant={participant}
+          isCurrentParticipant={isCurrentParticipant}
           reactionCount={reactionCount}
           reactionSpeed={reactionSpeed}
           isExpanded={isExpandedPickerVisible}
@@ -457,6 +464,7 @@ function PlayerSeat({
 
 export function PokerTable({
   participants,
+  currentParticipantId,
   revealed,
   reactions,
   canMakeFacilitator,
@@ -606,6 +614,7 @@ export function PokerTable({
         <PlayerSeat
           key={participant.id}
           participant={participant}
+          currentParticipantId={currentParticipantId}
           reactionCount={reactionCount}
           reactionSpeed={reactionSpeed}
           position={seatPositions[index]}
