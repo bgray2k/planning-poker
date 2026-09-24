@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Eye, Info, LogIn, Sparkles } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { isRoomId } from '../../shared/protocol.ts'
 
-const ALLOWED_ROOM_IDS = new Set(['NOVA', 'HORIZON'])
 const ROOM_NOT_FOUND_MESSAGE = 'Room does not exist'
 
 export function HomePage() {
@@ -20,7 +20,7 @@ export function HomePage() {
   function joinRoom(isSpectator: boolean) {
     if (!joinName.trim() || !joinCode.trim()) return
     const roomId = joinCode.trim().toUpperCase()
-    if (!ALLOWED_ROOM_IDS.has(roomId)) {
+    if (!isRoomId(roomId)) {
       setNotification(ROOM_NOT_FOUND_MESSAGE)
       return
     }

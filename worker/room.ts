@@ -3,6 +3,7 @@ import {
 	AFK_TIMEOUT_MESSAGE,
 	AFK_TIMEOUT_MS,
 	END_SESSION_MESSAGE,
+	isRoomId,
 	KICKED_MESSAGE,
 	MAX_PARTICIPANTS,
 	REACTION_COUNTS,
@@ -42,7 +43,6 @@ interface ConnectionAttachment {
 
 const ROOM_STORAGE_KEY = 'room'
 const CARD_VALUES = new Set<string>(Object.values(VOTE_DECKS).flat())
-const ALLOWED_ROOM_IDS = new Set(['NOVA', 'HORIZON'])
 const MAX_MESSAGE_BYTES = 4096
 const MESSAGE_WINDOW_MS = 10_000
 const MAX_MESSAGES_PER_WINDOW = 40
@@ -390,7 +390,7 @@ export class Room {
 			return new Response('Expected a WebSocket upgrade', { status: 426 })
 		}
 		this.roomId = new URL(request.url).searchParams.get('room')?.trim().toUpperCase() ?? null
-		if (!this.roomId || !ALLOWED_ROOM_IDS.has(this.roomId)) {
+		if (!this.roomId || !isRoomId(this.roomId)) {
 			return new Response('Invalid room id', { status: 400 })
 		}
 		if (this.state.getWebSockets().length >= MAX_CONNECTIONS_PER_ROOM) {

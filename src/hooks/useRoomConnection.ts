@@ -3,6 +3,7 @@ import {
   AFK_TIMEOUT_MESSAGE,
   END_SESSION_MESSAGE,
   KICKED_MESSAGE,
+  isRoomId,
   type CardValue,
   type ClientMessage,
   type RoomStateView,
@@ -19,7 +20,6 @@ declare global {
 }
 
 const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:8787'
-const ALLOWED_ROOM_IDS = new Set(['NOVA', 'HORIZON'])
 const ROOM_NOT_FOUND_MESSAGE = 'Room does not exist'
 
 function getClientId(roomId: string) {
@@ -64,7 +64,7 @@ export function useRoomConnection(roomId: string, name: string | null, isSpectat
 
   useEffect(() => {
     if (!name) return
-    if (!ALLOWED_ROOM_IDS.has(roomId.trim().toUpperCase())) {
+    if (!isRoomId(roomId.trim().toUpperCase())) {
       setError(ROOM_NOT_FOUND_MESSAGE)
       setConnected(false)
       return

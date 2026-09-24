@@ -9,6 +9,7 @@ import {
   AFK_TIMEOUT_MESSAGE,
   AFK_TIMEOUT_MS,
   END_SESSION_MESSAGE,
+  isRoomId,
   KICKED_MESSAGE,
   MAX_PARTICIPANTS,
   REACTION_COUNTS,
@@ -45,7 +46,6 @@ interface Room {
 
 const rooms = new Map<string, Room>()
 const connections = new WeakMap<WebSocket, { roomId: string; participantId: string }>()
-const ALLOWED_ROOM_IDS = new Set(['NOVA', 'HORIZON'])
 const ROOM_NOT_FOUND_MESSAGE = 'Room does not exist'
 
 function getOrCreateRoom(roomId: string): Room {
@@ -307,7 +307,7 @@ wss.on('connection', (ws, req) => {
   const url = new URL(req.url ?? '', 'http://localhost')
   const roomId = url.searchParams.get('room')?.trim().toUpperCase()
 
-  if (!roomId || !ALLOWED_ROOM_IDS.has(roomId)) {
+  if (!roomId || !isRoomId(roomId)) {
     send(ws, { type: 'error', message: ROOM_NOT_FOUND_MESSAGE })
     ws.close()
     return

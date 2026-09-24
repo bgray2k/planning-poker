@@ -1,11 +1,11 @@
 export { Room } from './room.ts'
+import { isRoomId } from '../shared/protocol.ts'
 
 export interface Env {
 	ROOMS: DurableObjectNamespace
 	ALLOWED_ORIGIN: string
 }
 
-const ALLOWED_ROOM_IDS = new Set(['NOVA', 'HORIZON'])
 const ROOM_NOT_FOUND_MESSAGE = 'Room does not exist'
 
 export default {
@@ -24,7 +24,7 @@ export default {
 		}
 
 		const roomId = new URL(request.url).searchParams.get('room')?.trim().toUpperCase()
-		if (!roomId || !ALLOWED_ROOM_IDS.has(roomId)) {
+		if (!roomId || !isRoomId(roomId)) {
 			return new Response(ROOM_NOT_FOUND_MESSAGE, { status: 404 })
 		}
 

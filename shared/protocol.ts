@@ -9,6 +9,14 @@ export const VOTE_DECKS = {
   confidence: ['1', '2', '3', '4', '5', '?'],
 } as const
 
+export const ROOM_IDS = ['NOVA', 'HORIZON', 'SHOGUN'] as const
+
+export type RoomId = (typeof ROOM_IDS)[number]
+
+export function isRoomId(value: string): value is RoomId {
+  return ROOM_IDS.includes(value as RoomId)
+}
+
 export const MAX_PARTICIPANTS = 20
 export const REACTION_EMOJIS = ['🧻', '✏️', '🚩', '✈️', '🚌'] as const
 export const REACTION_COUNTS = [1, 2, 3] as const
