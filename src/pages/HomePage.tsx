@@ -68,8 +68,7 @@ export function HomePage() {
               className="room-code-field__tooltip"
               role="tooltip"
             >
-              Room codes are pre-defined. Please reach out to the developer for
-              an approved room code.
+              Use team name as room code. These are pre-approved.
             </span>
           </button>
           <input
