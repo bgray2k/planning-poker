@@ -878,6 +878,7 @@
   gap: 0.25rem;
   margin-top: 0.35rem;
   grid-column: 1 / -1;
+  width: 100%;
 }
 
 .seat__reaction-speeds {
@@ -890,12 +891,12 @@
 }
 
 .seat__emoji-picker:not(.seat__emoji-picker--expanded) .seat__reaction-count {
-  flex: 1 1 0;
   min-width: 0;
   padding: 0.2rem 0.1rem;
 }
 
 .seat__reaction-count {
+  flex: 1 1 0;
   min-width: 2.5rem;
   padding: 0.25rem 0.4rem;
   border: 1px solid var(--border);
