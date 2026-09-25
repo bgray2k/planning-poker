@@ -16,6 +16,25 @@ const deckOptions: { label: string; value: VoteDeckType }[] = [
   { label: 'Confidence', value: 'confidence' },
 ]
 
+const connectingCardIndices = [0, 1, 2, 3, 4]
+
+function ConnectingScreen() {
+  return (
+    <section className="connecting-screen" role="status">
+      <div className="connecting-screen__cards" aria-hidden="true">
+        {connectingCardIndices.map((index) => (
+          <div
+            key={index}
+            className="seat__card connecting-screen__card"
+            style={{ animationDelay: `${index * 300}ms` }}
+          />
+        ))}
+      </div>
+      <span className="connecting-screen__label">Loading...</span>
+    </section>
+  )
+}
+
 export function RoomPage() {
   const { roomId = '' } = useParams()
   const [name, setName] = useState(() => sessionStorage.getItem(`pp:name:${roomId}`))
@@ -102,7 +121,7 @@ export function RoomPage() {
   }
 
   if (error) return <p className="error">{error}</p>
-  if (!connected || !state) return <p>Connecting…</p>
+  if (!connected || !state) return <ConnectingScreen />
 
   const you = state.participants.find((p) => p.id === state.you.id)
   const players = state.participants.filter((participant) => !participant.isSpectator)
